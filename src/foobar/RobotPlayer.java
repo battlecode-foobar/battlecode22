@@ -1,4 +1,4 @@
-package examplefuncsplayer;
+package foobar;
 
 import battlecode.common.*;
 import java.util.Random;
