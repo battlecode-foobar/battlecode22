@@ -32,3 +32,6 @@ battlecode-scaffold.iws
 .classpath
 .project
 .settings/
+
+# Local scripts used to set the correct JDK path
+setjava.bat
