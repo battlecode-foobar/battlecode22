@@ -10,6 +10,7 @@ import java.util.Random;
  * Global variables.
  */
 public class Globals {
+    // An innocent commit.
     /**
      * The RobotController singleton.
      */
