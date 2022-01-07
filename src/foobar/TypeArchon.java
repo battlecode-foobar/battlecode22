@@ -19,7 +19,6 @@ public strictfp class TypeArchon extends Globals {
             state = State.NEGOTIATING;
         else
             state = State.BUILDING_MINER;
-
 /*
         int before = Clock.getBytecodesLeft();
         MapLocation target = null;
@@ -53,15 +52,19 @@ public strictfp class TypeArchon extends Globals {
         }
     }
 
+    /**
+     * Negotiate with other archons to determine its index.
+     * @throws GameActionException Should not throw any exception actually.
+     */
     public static void negotiate() throws GameActionException {
-        while (self.readSharedArray(archonIndex) != 0) {
-            if (self.readSharedArray(archonIndex) == self.getID()) {
-                state = State.BUILDING_MINER;
+        if (turnCount > 0) {
+            if (self.readSharedArray(turnCount - 1) == self.getID()) {
+                archonIndex = turnCount - 1;
+                state = State.BUILDING_MINER; // Exit negotiation.
                 return;
             }
-            archonIndex++;
         }
-        self.writeSharedArray(archonIndex, self.getID());
+        self.writeSharedArray(turnCount, self.getID());
     }
 
     /**
