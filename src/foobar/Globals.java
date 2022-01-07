@@ -16,6 +16,9 @@ public class Globals {
     public static RobotController self;
     public static Team us;
     public static Team them;
+    /**
+     * A 0-based turn count counter.
+     */
     public static int turnCount;
     /**
      * A deterministic random number generator.

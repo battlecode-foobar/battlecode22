@@ -6,8 +6,17 @@ import battlecode.common.*;
  * Main controller logic for an Archon unit.
  */
 public strictfp class TypeArchon extends Globals {
+    /**
+     * How many bytes an archon can use in the shared array.
+     */
+    public final static int ARCHON_SPACE = 4;
+
     static State state;
-    static int archonIndex = 0;
+    static int archonIndex;
+    /**
+     * Offset into shared array.
+     */
+    static int sharedOffset;
 
     enum State {
         NEGOTIATING,
@@ -45,6 +54,7 @@ public strictfp class TypeArchon extends Globals {
         switch (state) {
             case NEGOTIATING:
                 negotiate();
+                tryBuildMiner();
                 break;
             case BUILDING_MINER:
                 tryBuildMiner();
@@ -57,14 +67,34 @@ public strictfp class TypeArchon extends Globals {
      * @throws GameActionException Should not throw any exception actually.
      */
     public static void negotiate() throws GameActionException {
-        if (turnCount > 0) {
+        if (turnCount > 0) { // If at least one turn elapsed.
             if (self.readSharedArray(turnCount - 1) == self.getID()) {
                 archonIndex = turnCount - 1;
+                System.out.println("Negotiate complete! I get index of " + archonIndex);
+                sharedOffset = archonIndex * ARCHON_SPACE;
+                self.writeSharedArray(sharedOffset, Messaging.encodeLocation(self.getLocation()));
                 state = State.BUILDING_MINER; // Exit negotiation.
                 return;
             }
         }
         self.writeSharedArray(turnCount, self.getID());
+    }
+
+    /**
+     * To be called by other type of droids and queries who built itself.
+     * @return The archon index of the archon that built the droid.
+     * @throws GameActionException Actually doesn't throw.
+     */
+    public static int whoBuiltMe() throws GameActionException {
+        MapLocation here = self.getLocation();
+        for (int i = 0; i < self.getArchonCount(); i++) {
+            MapLocation thisArchon = Messaging.decodeLocation(self.readSharedArray(i * ARCHON_SPACE));
+            if (thisArchon.isAdjacentTo(here)) {
+                return i;
+            }
+        }
+        // Should be unreachable;
+        return 0;
     }
 
     /**
@@ -77,6 +107,5 @@ public strictfp class TypeArchon extends Globals {
                 break;
             }
         }
-
     }
 }

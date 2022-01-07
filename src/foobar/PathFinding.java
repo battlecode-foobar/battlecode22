@@ -53,8 +53,6 @@ public class PathFinding extends Globals {
         }
         PriorityQueue<Path> paths = new PriorityQueue<>();
 
-
-
 /*
         HashMap<MapLocation, Path> visited = new HashMap<>();
         HashMap<MapLocation, Path> unvisited = new HashMap<>();
