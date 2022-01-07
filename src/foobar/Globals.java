@@ -1,6 +1,7 @@
 package foobar;
 
 import battlecode.common.Direction;
+import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.Team;
 
@@ -11,6 +12,7 @@ import java.util.Random;
  */
 public class Globals {
     // An innocent commit.
+    // Another innocent commit
     /**
      * The RobotController singleton.
      */
@@ -67,4 +69,5 @@ public class Globals {
     public static boolean firstRun() {
         return turnCount == 0;
     }
+
 }

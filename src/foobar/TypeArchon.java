@@ -55,6 +55,7 @@ public strictfp class TypeArchon extends Globals {
             case NEGOTIATING:
                 negotiate();
                 tryBuildMiner();
+                // what if we simply don't break?
                 break;
             case BUILDING_MINER:
                 tryBuildMiner();
