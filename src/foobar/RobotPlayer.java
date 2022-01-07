@@ -30,8 +30,8 @@ public strictfp class RobotPlayer extends Globals {
         while (true) {
             try {
                 stepGlobals();
-                // OPTIMIZE: if we run low on available bytecode counts, probably consider factoring this out of the
-                // loop?
+                // OPTIMIZE: if we run low on available bytecode counts, probably consider factoring this out of the loop?
+                // (Nicholas) Naive question: how does the switch statement increase bytecode count, and why (how) does "factoring it out" helps?
                 switch (rc.getType()) {
                     case ARCHON:
                         TypeArchon.step();
