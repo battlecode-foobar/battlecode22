@@ -11,8 +11,6 @@ import java.util.Random;
  * Global variables.
  */
 public class Globals {
-    // An innocent commit.
-    // Another innocent commit
     /**
      * The RobotController singleton.
      */
@@ -70,4 +68,14 @@ public class Globals {
         return turnCount == 0;
     }
 
+    /**
+     * One-side logging.
+     *
+     * @param message The message to be logged.
+     */
+    public static void log(String message) {
+        // Change this to keep only the logging of one side.
+        if (us == Team.A)
+            System.out.println(message);
+    }
 }
