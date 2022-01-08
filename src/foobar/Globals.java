@@ -17,6 +17,7 @@ public class Globals {
     public static RobotController self;
     public static Team us;
     public static Team them;
+    public static MapLocation here;
     /**
      * A 0-based turn count counter.
      */
@@ -57,6 +58,7 @@ public class Globals {
      */
     public static void stepGlobals() {
         turnCount++;
+        here = self.getLocation();
     }
 
     /**

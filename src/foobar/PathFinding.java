@@ -133,7 +133,9 @@ public class PathFinding extends Globals {
      * @return The cost of that location.
      * @throws GameActionException If the location can't be sensed by the robot.
      */
-    static int costOf(MapLocation loc) throws GameActionException {
+    static int getCostAt(MapLocation loc) throws GameActionException {
+        if (self.canSenseRobotAtLocation(loc))
+            return 100; // A very high value to deter the planner.
         return 1 + self.senseRubble(loc) / 10;
     }
 
@@ -144,7 +146,7 @@ public class PathFinding extends Globals {
      * @param dest The destination location.
      * @return The heuristic estimate of the cost from here to dest.
      */
-    static int heuristic(MapLocation here, MapLocation dest) {
+    static int estimateCost(MapLocation here, MapLocation dest) {
         // For now manhattan distance looks like a pretty good approximation.
         return Math.max(Math.abs(here.x - dest.x), Math.abs(here.y - dest.y)) - 1;
     }
@@ -160,12 +162,11 @@ public class PathFinding extends Globals {
     public static Path findPathWithAStar(MapLocation dest) throws GameActionException {
         if (!self.canSenseLocation(dest))
             return null;
-        MapLocation src = self.getLocation();
         LocationMap memory = new LocationMap(self.getType().visionRadiusSquared);
         PathHeap open = new PathHeap(3 * self.getType().visionRadiusSquared);
-        Path nothing = new Path(0, heuristic(src, dest), self.getLocation(), null);
+        Path nothing = new Path(0, estimateCost(here, dest), self.getLocation(), null);
         open.add(nothing);
-        memory.put(src, nothing);
+        memory.put(here, nothing);
         while (!open.isEmpty()) {
             Path cur = open.poll();
             if (cur.loc.equals(dest))
@@ -176,15 +177,106 @@ public class PathFinding extends Globals {
                 MapLocation next = cur.loc.add(dir);
                 if (!self.canSenseLocation(next))
                     continue;
-                int newCostSoFar = cur.costSoFar + costOf(next);
+                int newCostSoFar = cur.costSoFar + getCostAt(next);
                 Path stored = (Path) memory.get(next);
                 if (stored != null && stored.costSoFar <= newCostSoFar)
                     continue;
-                Path newPath = new Path(newCostSoFar, heuristic(next, dest), next, cur);
+                Path newPath = new Path(newCostSoFar, estimateCost(next, dest), next, cur);
                 open.add(newPath);
                 memory.put(next, newPath);
             }
         }
         return null;
+    }
+
+    static final Direction[] directionsCycle = new Direction[]{
+            Direction.NORTHWEST,
+            Direction.WEST,
+            Direction.SOUTHWEST,
+            Direction.SOUTH,
+            Direction.SOUTHEAST,
+            Direction.EAST,
+            Direction.NORTHEAST,
+            Direction.NORTH,
+            Direction.NORTHWEST,
+            Direction.WEST,
+            Direction.NORTHEAST
+    };
+
+    static Direction[] getDiscreteDirection(double theta) {
+        int index = (int) Math.round(theta / 0.785398) + 4;
+        return new Direction[]{
+                directionsCycle[index],
+                directionsCycle[index + 1],
+                directionsCycle[index + 2]
+        };
+    }
+
+    /**
+     * Returns the local-best direction to approach the dest from where the robot is in.
+     *
+     * @param dest The destination.
+     * @return A direction locally the best for the robot to move.
+     * @throws GameActionException Actually doesn't throw.
+     */
+    public static Direction findDirectionTo(MapLocation dest) throws GameActionException {
+        double theta = Math.atan2(dest.y - here.y, dest.x - here.x);
+        int minCost = Integer.MAX_VALUE;
+        Direction minCostDir = null;
+        for (Direction dir : getDiscreteDirection(theta)) {
+            MapLocation there = here.add(dir);
+            if (!self.canSenseLocation(there))
+                continue;
+            int costThere = getCostAt(there);
+            if (costThere < minCost) {
+                minCost = costThere;
+                minCostDir = dir;
+            }
+        }
+        return minCostDir;
+    }
+
+    static Direction bugDirection = null;
+
+    /**
+     * Returns if we have an obstacle in the given direction.
+     *
+     * @param dir The direction.
+     * @return If cell in the direction can be considered an obstacle.
+     */
+    static boolean notObstacle(Direction dir) throws GameActionException {
+        // TODO: obstacle detection: perhaps rubble over a certain threshold?
+        MapLocation there = here.add(dir);
+        return self.senseRubble(there) <= 50;
+    }
+
+    /**
+     * Use Bug 0 algorithm to move to the target.
+     *
+     * @param dest The target.
+     * @throws GameActionException Actually doesn't throw.
+     */
+    public static void moveToBug0(MapLocation dest) throws GameActionException {
+        if (self.getMovementCooldownTurns() > 10)
+            return;
+        if (here.equals(dest))
+            return;
+        Direction dir = here.directionTo(dest);
+        if (self.canMove(dir) && notObstacle(dir)) {
+            self.move(dir);
+            bugDirection = null;
+        } else {
+            if (bugDirection == null) {
+                bugDirection = dir;
+            }
+            for (int i = 0; i < 8; i++) {
+                if (self.canMove(bugDirection) && notObstacle(bugDirection)) {
+                    self.move(bugDirection);
+                    bugDirection = bugDirection.rotateLeft();
+                    break;
+                } else
+                    bugDirection = bugDirection.rotateRight();
+            }
+        }
     }
 }
