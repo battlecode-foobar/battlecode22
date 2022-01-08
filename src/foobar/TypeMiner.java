@@ -9,56 +9,82 @@ import battlecode.common.MapLocation;
  * Main controller logic for a Miner unit
  */
 public strictfp class TypeMiner extends Globals {
-    // the default (-1, -1) is (equivalent to saying that there's no target yet)
-    static MapLocation targetLocation = new MapLocation(-1, -1);
-    static int[][] delta = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}, {0, 0}, {0, -1}, {0, 1}, {1, 0}, {-1, 0}};
+    /**
+     * The target location the miner is trying to approach.
+     */
+    static MapLocation targetLocation;
+    /**
+     * The cached vision radius.
+     */
     static int visionRadiusSq = 0;
+    /**
+     * The cached action radius.
+     */
     static int actionRadiusSq = 0;
+    /**
+     * If we are at our target.
+     */
     static Boolean atTarget = false;
+    /**
+     * All directions relative to our current position where we can try look for metals and try mine.
+     */
+    static Direction[] canTryMine = {
+            Direction.CENTER,
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
+    };
 
     public static void step() throws GameActionException {
-        // Always determine whether oneself is at target
-        if ((atTarget && self.senseLead(here) == 0))
-            // if we were previously at target then target suddenly disappeared
-            targetLocation = new MapLocation(-1, -1);
-        atTarget = (here.x == targetLocation.x && here.y == targetLocation.y);
-        if (atTarget)
-            self.setIndicatorString("At target (" + targetLocation.x + "," + targetLocation.y + ")");
-        else if (targetLocation.x == -1 && targetLocation.y == -1)
-            self.setIndicatorString("Wandering");
-        else if (here.x != targetLocation.x || here.y != targetLocation.y)
-            self.setIndicatorString("Not at target (" + targetLocation.x + "," + targetLocation.y + ") yet");
-        else
-            self.setIndicatorString("I don't know what I'm doing");
-
         // Initialization: Scan for target and update radius
         if (firstRun()) {
             searchForTarget();
             visionRadiusSq = self.getType().visionRadiusSquared;
             actionRadiusSq = self.getType().actionRadiusSquared;
+            targetLocation = null;
+        }
+
+
+        MapLocation here = self.getLocation();
+        // Always determine whether oneself is at target
+        if (atTarget && self.senseLead(here) == 0)
+            // if we were previously at target then target suddenly disappeared
+            targetLocation = null;
+
+        if (targetLocation == null) {
+            atTarget = false;
+            self.setIndicatorString("Wandering");
+        } else {
+            atTarget = here.equals(targetLocation);
+            if (atTarget)
+                self.setIndicatorString("At target " + targetLocation);
+            else
+                self.setIndicatorString("Not at target " + targetLocation + " yet");
         }
 
         // Try to mine on squares around us.
-        for (int i = 0; i < 9; i++) {
-            MapLocation mineLocation = new MapLocation(here.x + delta[i][0],
-                    here.y + delta[i][1]);
-            // Notice that the Miner's action cooldown is very low.
+        for (Direction dir : canTryMine) {
+            MapLocation mineLocation = here.add(dir);
+            // Notice that the Miner's action cool down is very low.
             // You can mine multiple times per turn!
-            while (self.canMineGold(mineLocation)) {
+            while (self.canMineGold(mineLocation))
                 self.mineGold(mineLocation);
-            }
-            while (self.canMineLead(mineLocation) && self.senseLead(mineLocation) >= 16) {
+            while (self.canMineLead(mineLocation) && self.senseLead(mineLocation) >= 16)
                 self.mineLead(mineLocation);
-            }
         }
 
         // Main body of each turn
         if (hasTarget()) {
             // If we have a target, we have either reached it or not
             // We don't need to do anything if we are at the target (we'll just continue mining by default)
-            if (here.x != targetLocation.x || here.y != targetLocation.y) {
+            if (!here.equals(targetLocation)) {
                 if (!validTarget(targetLocation)) {
-                    targetLocation = new MapLocation(-1, -1);
+                    targetLocation = null;
                     wander();
                     searchForTarget();
                 } else {
@@ -78,25 +104,21 @@ public strictfp class TypeMiner extends Globals {
 
     // returns whether the robot has a target
     public static boolean hasTarget() {
-        return targetLocation.x != -1 && targetLocation.y != -1;
+        return targetLocation != null;
     }
 
     static void searchForTarget() throws GameActionException {
-        MapLocation[] locations = self.getAllLocationsWithinRadiusSquared(here, visionRadiusSq);
-        MapLocation bestLocation = new MapLocation(-1, -1);
+        MapLocation[] candidates = self.getAllLocationsWithinRadiusSquared(self.getLocation(), visionRadiusSq);
+        MapLocation bestLocation = null;
         int mostLead = 0;
-        int leadAtLoc = 0;
 
-        for (MapLocation loc : locations) {
-            if (self.canSenseLocation(loc)) {
-                leadAtLoc = self.senseLead(loc);
-                if (leadAtLoc > mostLead) {
-                    boolean validTarget = true;
-                    // Heuristic: The periphery of our target shouldn't contain any bots
-                    if (validTarget(loc)) {
-                        mostLead = leadAtLoc;
-                        bestLocation = loc;
-                    }
+        for (MapLocation loc : candidates) {
+            int leadAtLoc = self.senseLead(loc);
+            if (leadAtLoc > mostLead) {
+                // Heuristic: The periphery of our target shouldn't contain any bots
+                if (validTarget(loc)) {
+                    mostLead = leadAtLoc;
+                    bestLocation = loc;
                 }
             }
         }
@@ -107,20 +129,16 @@ public strictfp class TypeMiner extends Globals {
         }
     }
 
-    static void goToTarget() throws GameActionException {
-        wander();
-    }
-
-    static boolean validTarget(MapLocation loc) throws GameActionException {
-        if (loc.x == -1 || loc.y == -1)
+    static boolean validTarget(MapLocation loc) {
+        if (loc == null)
             return false;
         int neighborRobotsCount = 0;
-        for (int i = 0; i < 9; i++) {
-            MapLocation targetNeighbor = new MapLocation(loc.x + delta[i][0],
-                    loc.y + delta[i][1]);
+        MapLocation here = self.getLocation();
+        for (Direction dir : canTryMine) {
+            MapLocation targetNeighbor = here.add(dir);
             if (self.canSenseRobotAtLocation(targetNeighbor)) {
                 // A target is an immediate no-no if there's another robot squatting on it
-                if (targetNeighbor.x == loc.x && targetNeighbor.y == loc.y)
+                if (loc.equals(targetNeighbor))
                     return false;
                 neighborRobotsCount++;
             }
@@ -130,7 +148,7 @@ public strictfp class TypeMiner extends Globals {
 
     static void wander() throws GameActionException {
         // OPTIMIZE: a better direction distribution.
-        RobotInfo[] neighborBots = self.senseNearbyRobots(here, visionRadiusSq, us);
+        RobotInfo[] neighborBots = self.senseNearbyRobots(self.getLocation(), visionRadiusSq, us);
 
         Direction dir = directions[rng.nextInt(directions.length)];
         if (self.canMove(dir)) {

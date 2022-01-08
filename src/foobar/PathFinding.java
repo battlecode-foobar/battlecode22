@@ -167,6 +167,7 @@ public class PathFinding extends Globals {
             return null;
         LocationMap memory = new LocationMap(self.getType().visionRadiusSquared);
         PathHeap open = new PathHeap(3 * self.getType().visionRadiusSquared);
+        MapLocation here = self.getLocation();
         Path nothing = new Path(0, estimateCost(here, dest), self.getLocation(), null);
         open.add(nothing);
         memory.put(here, nothing);
@@ -230,6 +231,7 @@ public class PathFinding extends Globals {
      * @throws GameActionException Actually doesn't throw.
      */
     public static Direction findDirectionTo(MapLocation dest) throws GameActionException {
+        MapLocation here = self.getLocation();
         double theta = Math.atan2(dest.y - here.y, dest.x - here.x);
         int minCost = Integer.MAX_VALUE;
         Direction minCostDir = null;
@@ -256,7 +258,7 @@ public class PathFinding extends Globals {
      */
     static boolean notObstacle(Direction dir) throws GameActionException {
         // TODO: obstacle detection: perhaps rubble over a certain threshold?
-        MapLocation there = here.add(dir);
+        MapLocation there = self.getLocation().add(dir);
         return self.senseRubble(there) <= 50;
     }
 
@@ -269,6 +271,7 @@ public class PathFinding extends Globals {
     public static void moveToBug0(MapLocation dest) throws GameActionException {
         if (!self.isMovementReady())
             return;
+        MapLocation here = self.getLocation();
         if (here.equals(dest))
             return;
         Direction dir = here.directionTo(dest);
