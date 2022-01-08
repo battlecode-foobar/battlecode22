@@ -28,7 +28,7 @@ public strictfp class TypeArchon extends Globals {
             state = State.NEGOTIATING;
         else
             state = State.BUILDING_MINER;
-
+        /*
         int before = Clock.getBytecodesLeft();
         MapLocation target = null;
         MapLocation[] potentialMines = self.getAllLocationsWithinRadiusSquared(self.getLocation(), Integer.MAX_VALUE);
@@ -44,7 +44,7 @@ public strictfp class TypeArchon extends Globals {
         System.out.println("Lead finding took " + (before - Clock.getBytecodesLeft()));
         before = Clock.getBytecodesLeft();
         PathFinding.findPathWithAStar(target);
-        System.out.println("Path finding took " + (before - Clock.getBytecodesLeft()));
+        System.out.println("Path finding took " + (before - Clock.getBytecodesLeft()));*/
     }
 
     public static void step() throws GameActionException {
@@ -101,13 +101,11 @@ public strictfp class TypeArchon extends Globals {
      * Try build a miner around self.
      */
     public static void tryBuildMiner() throws GameActionException {
-/*
         for (Direction dir : directions) {
             if (self.canBuildRobot(RobotType.MINER, dir)) {
                 self.buildRobot(RobotType.MINER, dir);
                 break;
             }
         }
-*/
     }
 }

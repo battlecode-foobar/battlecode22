@@ -51,6 +51,7 @@ public class Globals {
         them = us.opponent();
         // This will quickly become 0 as stepGlobals() will be called.
         turnCount = -1;
+        here = self.getLocation();
     }
 
     /**
