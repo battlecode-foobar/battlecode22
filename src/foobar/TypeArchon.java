@@ -9,12 +9,15 @@ public strictfp class TypeArchon extends Globals {
     /**
      * How many bytes an archon can use in the shared array.
      */
-    public final static int ARCHON_SPACE = 4;
+    public static final int ARCHON_SPACE = 4;
+    /**
+     * The maximum number of miners this archon is going to make.
+     */
+    public static final int MAX_MINER = 8;
 
     static State state;
     static int archonIndex;
     static int minerCount = 0;
-    static final int maxMinerCount = 8;
     /**
      * Offset into shared array.
      */
@@ -66,6 +69,7 @@ public strictfp class TypeArchon extends Globals {
 
     /**
      * Negotiate with other archons to determine its index.
+     *
      * @throws GameActionException Should not throw any exception actually.
      */
     public static void negotiate() throws GameActionException {
@@ -84,6 +88,7 @@ public strictfp class TypeArchon extends Globals {
 
     /**
      * To be called by other type of droids and queries who built itself.
+     *
      * @return The archon index of the archon that built the droid.
      * @throws GameActionException Actually doesn't throw.
      */
@@ -104,7 +109,7 @@ public strictfp class TypeArchon extends Globals {
      */
     public static void tryBuildMiner() throws GameActionException {
         for (Direction dir : directions) {
-            if (self.canBuildRobot(RobotType.MINER, dir) && minerCount <= maxMinerCount) {
+            if (self.canBuildRobot(RobotType.MINER, dir) && minerCount <= MAX_MINER) {
                 self.buildRobot(RobotType.MINER, dir);
                 minerCount++;
                 break;
