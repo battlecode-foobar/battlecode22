@@ -11,37 +11,35 @@ import battlecode.common.MapLocation;
 public strictfp class TypeMiner extends Globals {
     // the default (-1, -1) is (equivalent to saying that there's no target yet)
     static MapLocation targetLocation = new MapLocation(-1, -1);
-    static int[][] delta = {{0, 0}, {0, -1}, {0, 1}, {1, 0}, {-1, 0}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+    static int[][] delta = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}, {0, 0}, {0, -1}, {0, 1}, {1, 0}, {-1, 0}};
     static int visionRadiusSq = 0;
     static int actionRadiusSq = 0;
     static Boolean atTarget = false;
 
     public static void step() throws GameActionException {
         // Always determine whether oneself is at target
-        System.out.println(here);
-        if (atTarget && self.senseLead(here) == 0)
+        if ((atTarget && self.senseLead(here) == 0))
             // if we were previously at target then target suddenly disappeared
             targetLocation = new MapLocation(-1, -1);
         atTarget = (here.x == targetLocation.x && here.y == targetLocation.y);
         if (atTarget)
-            self.setIndicatorString("At target");
+            self.setIndicatorString("At target (" + targetLocation.x + "," + targetLocation.y + ")");
         else if (targetLocation.x == -1 && targetLocation.y == -1)
             self.setIndicatorString("Wandering");
         else if (here.x != targetLocation.x || here.y != targetLocation.y)
-            self.setIndicatorString("Not at target ("+targetLocation.x+","+targetLocation.y+") yet");
+            self.setIndicatorString("Not at target (" + targetLocation.x + "," + targetLocation.y + ") yet");
         else
             self.setIndicatorString("I don't know what I'm doing");
 
         // Initialization: Scan for target and update radius
         if (firstRun()) {
             searchForTarget();
-            visionRadiusSq = self.getType().actionRadiusSquared;
+            visionRadiusSq = self.getType().visionRadiusSquared;
             actionRadiusSq = self.getType().actionRadiusSquared;
         }
 
         // Try to mine on squares around us.
-        for (int i=0; i<9; i++)
-        {
+        for (int i = 0; i < 9; i++) {
             MapLocation mineLocation = new MapLocation(here.x + delta[i][0],
                     here.y + delta[i][1]);
             // Notice that the Miner's action cooldown is very low.
@@ -59,10 +57,16 @@ public strictfp class TypeMiner extends Globals {
             // If we have a target, we have either reached it or not
             // We don't need to do anything if we are at the target (we'll just continue mining by default)
             if (here.x != targetLocation.x || here.y != targetLocation.y) {
-                // go towards the current target
-                PathFinding.moveToBug0(targetLocation);
-                // If we found a better target along the way, go to it
-                searchForTarget();
+                if (!validTarget(targetLocation)) {
+                    targetLocation = new MapLocation(-1, -1);
+                    wander();
+                    searchForTarget();
+                } else {
+                    // go towards the current target
+                    PathFinding.moveToBug0(targetLocation);
+                    // If we found a better target along the way, go to it
+                    searchForTarget();
+                }
             }
         } else {
             // If we don't even have a target, then wander around
@@ -89,15 +93,7 @@ public strictfp class TypeMiner extends Globals {
                 if (leadAtLoc > mostLead) {
                     boolean validTarget = true;
                     // Heuristic: The periphery of our target shouldn't contain any bots
-                    for (int i=0; i<9; i++){
-                        MapLocation targetNeighbor = new MapLocation(loc.x + delta[i][0],
-                                loc.y + delta[i][1]);
-                        if (self.canSenseRobotAtLocation(targetNeighbor)){
-                            validTarget = false;
-                            break;
-                        }
-                    }
-                    if (validTarget) {
+                    if (validTarget(loc)) {
                         mostLead = leadAtLoc;
                         bestLocation = loc;
                     }
@@ -113,6 +109,23 @@ public strictfp class TypeMiner extends Globals {
 
     static void goToTarget() throws GameActionException {
         wander();
+    }
+
+    static boolean validTarget(MapLocation loc) throws GameActionException {
+        if (loc.x == -1 || loc.y == -1)
+            return false;
+        int neighborRobotsCount = 0;
+        for (int i = 0; i < 9; i++) {
+            MapLocation targetNeighbor = new MapLocation(loc.x + delta[i][0],
+                    loc.y + delta[i][1]);
+            if (self.canSenseRobotAtLocation(targetNeighbor)) {
+                // A target is an immediate no-no if there's another robot squatting on it
+                if (targetNeighbor.x == loc.x && targetNeighbor.y == loc.y)
+                    return false;
+                neighborRobotsCount++;
+            }
+        }
+        return neighborRobotsCount < 4;
     }
 
     static void wander() throws GameActionException {

@@ -13,6 +13,8 @@ public strictfp class TypeArchon extends Globals {
 
     static State state;
     static int archonIndex;
+    static int minerCount = 0;
+    static final int maxMinerCount = 8;
     /**
      * Offset into shared array.
      */
@@ -102,8 +104,9 @@ public strictfp class TypeArchon extends Globals {
      */
     public static void tryBuildMiner() throws GameActionException {
         for (Direction dir : directions) {
-            if (self.canBuildRobot(RobotType.MINER, dir)) {
+            if (self.canBuildRobot(RobotType.MINER, dir) && minerCount <= maxMinerCount) {
                 self.buildRobot(RobotType.MINER, dir);
+                minerCount++;
                 break;
             }
         }
