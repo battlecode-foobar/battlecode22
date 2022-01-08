@@ -24,13 +24,14 @@ public strictfp class TypeMiner extends Globals {
                 self.senseLead(selfLocation) > 0);
 
         // Initialization: Scan for target and update radius
-        if (firstRun()){
+        if (firstRun()) {
             searchForTarget();
             visionRadiusSq = self.getType().actionRadiusSquared;
         }
 
         // Regardless of what it is doing, a miner should always try to mine lead mines around itself sustainably
-        MapLocation[] surroundLocs = {new MapLocation(selfLocation.x - 1, selfLocation.y - 1),
+        MapLocation[] surroundLocs = {
+                new MapLocation(selfLocation.x - 1, selfLocation.y - 1),
                 new MapLocation(selfLocation.x - 1, selfLocation.y),
                 new MapLocation(selfLocation.x - 1, selfLocation.y + 1),
                 new MapLocation(selfLocation.x, selfLocation.y - 1),
@@ -38,7 +39,8 @@ public strictfp class TypeMiner extends Globals {
                 new MapLocation(selfLocation.x, selfLocation.y + 1),
                 new MapLocation(selfLocation.x + 1, selfLocation.y - 1),
                 new MapLocation(selfLocation.x + 1, selfLocation.y),
-                new MapLocation(selfLocation.x + 1, selfLocation.y + 1)};
+                new MapLocation(selfLocation.x + 1, selfLocation.y + 1)
+        };
         /*
         while (self.isActionReady()){
             for (MapLocation targetLoc: surroundLocs){
@@ -48,15 +50,15 @@ public strictfp class TypeMiner extends Globals {
         }*/
 
         // Main body of each turn
-        if (hasTarget()){
+        if (hasTarget()) {
             // If we have a target, we have either reached it or not
             // We don't need to do anything if we are at the target (we'll just continue mining by default)
-            if (selfLocation.x != targetLocation.x || selfLocation.y != targetLocation.y){
+            if (selfLocation.x != targetLocation.x || selfLocation.y != targetLocation.y) {
                 log("Going for target!");
                 // go towards the current target
-                goToTarget();}
-        }
-        else{
+                goToTarget();
+            }
+        } else {
             // If we don't even have a target, then wander around
             // TODO: wander in the general direction where there are no other robots
             wander();
@@ -65,43 +67,39 @@ public strictfp class TypeMiner extends Globals {
     }
 
     // returns whether the robot has a target
-    public static boolean hasTarget(){
-        return targetLocation.x != -1 && targetLocation.y != -1;}
+    public static boolean hasTarget() {
+        return targetLocation.x != -1 && targetLocation.y != -1;
+    }
 
-    static void searchForTarget()throws GameActionException{
-        MapLocation locations[] = self.getAllLocationsWithinRadiusSquared(selfLocation, visionRadiusSq);
-        log(""+locations.length);
+    static void searchForTarget() throws GameActionException {
+        MapLocation[] locations = self.getAllLocationsWithinRadiusSquared(selfLocation, visionRadiusSq);
+        log("" + locations.length);
         int mostLead = 0;
-        int leadatLoc = 0;
-        for (MapLocation loc:locations)
-        {
+        int leadAtLoc = 0;
+        for (MapLocation loc : locations) {
             if (self.canSenseLocation(loc)) {
-                leadatLoc = self.senseLead(loc);
-                if (leadatLoc > mostLead) {
-                    mostLead = leadatLoc;
+                leadAtLoc = self.senseLead(loc);
+                if (leadAtLoc > mostLead) {
+                    mostLead = leadAtLoc;
                     locations[0] = loc;
                 }
             }
         }
         if (mostLead > 0) {
             targetLocation = locations[0];
-            log("Droid "+self.getID()+" found lead amount "+mostLead+" @("+targetLocation.x+","+targetLocation.y+")");
+            log("Droid " + self.getID() + " found lead amount " + mostLead + " @(" + targetLocation.x + "," + targetLocation.y + ")");
         }
     }
 
-    static void goToTarget() throws GameActionException{
+    static void goToTarget() throws GameActionException {
         wander();
     }
 
     static void wander() throws GameActionException {
         // OPTIMIZE: a better direction distribution.
         Direction dir = directions[rng.nextInt(directions.length)];
-        if (self.canMove(dir)){
-            log("Actually Moving");
-            self.move(dir);}
-        else{
-            log("Wandering but can't move");
+        if (self.canMove(dir)) {
+            self.move(dir);
         }
-
     }
 }
