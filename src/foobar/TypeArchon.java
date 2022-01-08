@@ -70,7 +70,7 @@ public strictfp class TypeArchon extends Globals {
         if (turnCount > 0) { // If at least one turn elapsed.
             if (self.readSharedArray(turnCount - 1) == self.getID()) {
                 archonIndex = turnCount - 1;
-                System.out.println("Negotiate complete! I get index of " + archonIndex);
+                log("Negotiate complete! I get index of " + archonIndex);
                 sharedOffset = archonIndex * ARCHON_SPACE;
                 self.writeSharedArray(sharedOffset, Messaging.encodeLocation(self.getLocation()));
                 state = State.BUILDING_MINER; // Exit negotiation.

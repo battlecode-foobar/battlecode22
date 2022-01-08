@@ -9,58 +9,99 @@ import battlecode.common.MapLocation;
  */
 public strictfp class TypeMiner extends Globals {
     // the default (-1, -1) is (equivalent to saying that there's no target yet)
-    static MapLocation target_location = new MapLocation(-1, -1);
-
-    // returns whether the robot has a target
-    public static boolean is_wandering() {return target_location.x == -1 && target_location.y == -1;}
+    static MapLocation targetLocation = new MapLocation(-1, -1);
+    static MapLocation selfLocation = new MapLocation(-1, -1);
+    static int visionRadiusSq = 0;
+    static Boolean atTarget = false;
 
     public static void step() throws GameActionException {
+        // Always ascertain own position at the start of turn
+        selfLocation = self.getLocation();
+
+        // Always determine whether oneself is at target
+        // We are atTarget if: we are physically there AND the target is still there (e.g. during Vortex)
+        atTarget = (selfLocation.x == targetLocation.x && selfLocation.y == targetLocation.y &&
+                self.senseLead(selfLocation) > 0);
+
+        // Initialization: Scan for target and update radius
         if (firstRun()){
-            scan_for_target();
+            searchForTarget();
+            visionRadiusSq = self.getType().actionRadiusSquared;
         }
-        // scan for a target within sight
-        // TODO: make sure there are no other
-        if (is_wandering()){
+
+        // Regardless of what it is doing, a miner should always try to mine lead mines around itself sustainably
+        MapLocation[] surroundLocs = {new MapLocation(selfLocation.x - 1, selfLocation.y - 1),
+                new MapLocation(selfLocation.x - 1, selfLocation.y),
+                new MapLocation(selfLocation.x - 1, selfLocation.y + 1),
+                new MapLocation(selfLocation.x, selfLocation.y - 1),
+                new MapLocation(selfLocation.x, selfLocation.y),
+                new MapLocation(selfLocation.x, selfLocation.y + 1),
+                new MapLocation(selfLocation.x + 1, selfLocation.y - 1),
+                new MapLocation(selfLocation.x + 1, selfLocation.y),
+                new MapLocation(selfLocation.x + 1, selfLocation.y + 1)};
+        /*
+        while (self.isActionReady()){
+            for (MapLocation targetLoc: surroundLocs){
+                if (self.canSenseLocation(targetLoc) && self.senseLead(targetLoc) >= 10 && self.canMineLead(targetLoc))
+                   self.mineLead(targetLoc);
+            }
+        }*/
+
+        // Main body of each turn
+        if (hasTarget()){
+            // If we have a target, we have either reached it or not
+            // We don't need to do anything if we are at the target (we'll just continue mining by default)
+            if (selfLocation.x != targetLocation.x || selfLocation.y != targetLocation.y){
+                log("Going for target!");
+                // go towards the current target
+                goToTarget();}
+        }
+        else{
+            // If we don't even have a target, then wander around
             // TODO: wander in the general direction where there are no other robots
-            wander();}
-        else {
-            //go towards the current target
+            wander();
+            searchForTarget();
         }
-        try_mining();
     }
 
-    // Scan for whether there is a target in sight
-    static void scan_for_lead() throws GameActionException{
-        // scan for a list of locations with lead; greater than vision radius so we will
-        // MapLocation[] targets = self.senseNearbyLocationsWithLead(64)
-    }
+    // returns whether the robot has a target
+    public static boolean hasTarget(){
+        return targetLocation.x != -1 && targetLocation.y != -1;}
 
-    static void scan_for_target()throws GameActionException{
-
-    }
-
-    static void try_mining() throws GameActionException{
-        // Try to mine on squares around us.
-        MapLocation me = self.getLocation();
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                MapLocation mineLocation = new MapLocation(me.x + dx, me.y + dy);
-                // Notice that the Miner's action cooldown is very low.
-                // You can mine multiple times per turn!
-                while (self.canMineGold(mineLocation)) {
-                    self.mineGold(mineLocation);
-                }
-                while (self.canMineLead(mineLocation)) {
-                    self.mineLead(mineLocation);
+    static void searchForTarget()throws GameActionException{
+        MapLocation locations[] = self.getAllLocationsWithinRadiusSquared(selfLocation, visionRadiusSq);
+        log(""+locations.length);
+        int mostLead = 0;
+        int leadatLoc = 0;
+        for (MapLocation loc:locations)
+        {
+            if (self.canSenseLocation(loc)) {
+                leadatLoc = self.senseLead(loc);
+                if (leadatLoc > mostLead) {
+                    mostLead = leadatLoc;
+                    locations[0] = loc;
                 }
             }
         }
+        if (mostLead > 0) {
+            targetLocation = locations[0];
+            log("Droid "+self.getID()+" found lead amount "+mostLead+" @("+targetLocation.x+","+targetLocation.y+")");
+        }
+    }
+
+    static void goToTarget() throws GameActionException{
+        wander();
     }
 
     static void wander() throws GameActionException {
         // OPTIMIZE: a better direction distribution.
         Direction dir = directions[rng.nextInt(directions.length)];
-        if (self.canMove(dir))
-            self.move(dir);
+        if (self.canMove(dir)){
+            log("Actually Moving");
+            self.move(dir);}
+        else{
+            log("Wandering but can't move");
+        }
+
     }
 }
