@@ -63,6 +63,9 @@ public class PathFinding extends Globals {
         }
     }
 
+    /**
+     * A min-heap of Paths by their total cost.
+     */
     static class PathHeap {
         Path[] heap;
         int n;
@@ -203,7 +206,14 @@ public class PathFinding extends Globals {
             Direction.NORTHEAST
     };
 
+    /**
+     * Returns the three directions closest to the given angle.
+     *
+     * @param theta The angle relative to positive x-axis specifying an accurate direction.
+     * @return An array of three directions closest to theta.
+     */
     static Direction[] getDiscreteDirection(double theta) {
+        // 0.785398 is pi / 4
         int index = (int) Math.round(theta / 0.785398) + 4;
         return new Direction[]{
                 directionsCycle[index],
@@ -257,7 +267,7 @@ public class PathFinding extends Globals {
      * @throws GameActionException Actually doesn't throw.
      */
     public static void moveToBug0(MapLocation dest) throws GameActionException {
-        if (self.getMovementCooldownTurns() > 10)
+        if (!self.isMovementReady())
             return;
         if (here.equals(dest))
             return;
@@ -266,9 +276,8 @@ public class PathFinding extends Globals {
             self.move(dir);
             bugDirection = null;
         } else {
-            if (bugDirection == null) {
+            if (bugDirection == null)
                 bugDirection = dir;
-            }
             for (int i = 0; i < 8; i++) {
                 if (self.canMove(bugDirection) && notObstacle(bugDirection)) {
                     self.move(bugDirection);
