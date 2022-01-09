@@ -27,7 +27,7 @@ public class TypeBuilder extends Globals {
         if (targetLoc != null && self.canSenseRobot(targetID)) {
             // then update its location.
             targetLoc = self.senseRobot(targetID).getLocation();
-        } else if (self.canSenseLocation(targetLoc)) {
+        } else if (targetLoc != null && self.canSenseLocation(targetLoc)) {
             // Otherwise, if we cannot see the robot, but we can sense the location, we lost the track of target robot.
             targetLoc = null;
             targetID = 0;
