@@ -18,6 +18,24 @@ public class TypeSoldier extends Globals {
 
         Messaging.reportAllEnemiesAround();
 
+        findEnemyAndAttack();
+
+        if (!rusher) {
+            supportFrontier();
+        } else {
+            if (Messaging.getTotalSoldierCount() < RUSH_PATIENCE) {
+                self.setIndicatorString("assemble at " + assemblyTarget);
+                PathFinding.moveToBug0(assemblyTarget, 80);
+            } else {
+                rush();
+            }
+        }
+    }
+
+    /**
+     * Finds an enemy and attacks.
+     */
+    public static void findEnemyAndAttack() throws GameActionException {
         int radius = self.getType().actionRadiusSquared;
         RobotInfo[] enemies = self.senseNearbyRobots(radius, them);
         int minHealth = Integer.MAX_VALUE;
@@ -32,7 +50,6 @@ public class TypeSoldier extends Globals {
                 enemy = candidate;
             }
         }
-
         if (enemy != null) {
             MapLocation toAttack = enemy.getLocation();
             if (self.canAttack(toAttack)) {
@@ -42,17 +59,6 @@ public class TypeSoldier extends Globals {
                         Messaging.reportDeadArchon(toAttack);
                     }
                 }
-            }
-        }
-
-        if (!rusher) {
-            supportFrontier();
-        } else {
-            if (Messaging.getTotalSoldierCount() < RUSH_PATIENCE) {
-                self.setIndicatorString("assemble at " + assemblyTarget);
-                PathFinding.moveToBug0(assemblyTarget, 80);
-            } else {
-                rush();
             }
         }
     }

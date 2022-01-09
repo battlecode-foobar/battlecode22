@@ -43,12 +43,13 @@ public strictfp class RobotPlayer extends Globals {
                         TypeSoldier.step();
                         break;
                     case LABORATORY:
+                        break;
                     case WATCHTOWER:
+                        TypeWatchTower.step();
                     case BUILDER:
                         TypeBuilder.step();
                         break;
                     case SAGE:
-                        break;
                 }
             } catch (GameActionException e) {
                 System.out.println(rc.getType() + " Exception");
