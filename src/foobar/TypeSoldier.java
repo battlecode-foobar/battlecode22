@@ -3,7 +3,7 @@ package foobar;
 import battlecode.common.*;
 
 public class TypeSoldier extends Globals {
-    static final int RUSH_PATIENCE = 500;
+    static final int RUSH_PATIENCE = 50;
 
     static MapLocation assemblyTarget;
     static MapLocation[] enemyArchons;
@@ -12,7 +12,7 @@ public class TypeSoldier extends Globals {
     public static void step() throws GameActionException {
         if (firstRun()) {
             // RUSH_PATIENCE = us.equals(Team.A) ? 400 : 500;
-            rusher = Messaging.getGlobalTurnCount() < RUSH_PATIENCE;
+            rusher = Messaging.getTotalSoldierCount() < RUSH_PATIENCE;
             calculateEnemyArchons();
         }
 
@@ -48,7 +48,7 @@ public class TypeSoldier extends Globals {
         if (!rusher) {
             supportFrontier();
         } else {
-            if (Messaging.getGlobalTurnCount() < RUSH_PATIENCE) {
+            if (Messaging.getTotalSoldierCount() < RUSH_PATIENCE) {
                 self.setIndicatorString("assemble at " + assemblyTarget);
                 PathFinding.moveToBug0(assemblyTarget, 80);
             } else {
