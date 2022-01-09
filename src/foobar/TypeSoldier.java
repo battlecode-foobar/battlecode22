@@ -5,16 +5,22 @@ import battlecode.common.*;
 public class TypeSoldier extends Globals {
     static final int RUSH_PATIENCE = 800;
 
-    static int initialArchonCount;
+    enum Role {
+        RUSHER,
+        REINFORCEMENT,
+        WANDERER,
+    }
+
     static MapLocation assemblyTarget;
     static MapLocation[] enemyArchons;
 
     public static void step() throws GameActionException {
         if (firstRun()) {
             // RUSH_PATIENCE = us.equals(Team.A) ? 400 : 500;
-            initialArchonCount = self.getArchonCount();
             calculateEnemyArchons();
         }
+
+        Messaging.reportAllEnemiesAround();
 
         int radius = self.getType().actionRadiusSquared;
         RobotInfo[] enemies = self.senseNearbyRobots(radius, them);
@@ -32,7 +38,7 @@ public class TypeSoldier extends Globals {
         }
 
         if (enemy != null) {
-            MapLocation toAttack = enemy.location;
+            MapLocation toAttack = enemy.getLocation();
             if (self.canAttack(toAttack)) {
                 self.attack(toAttack);
                 if (enemy.getType().equals(RobotType.ARCHON)) {
@@ -43,28 +49,62 @@ public class TypeSoldier extends Globals {
             }
         }
 
-        if (Messaging.getGlobalTurnCount() < RUSH_PATIENCE) {
-            // Also try to move randomly.
-/*
-            Direction dir = directions[rng.nextInt(directions.length)];
-            if (self.canMove(dir)) {
-                self.move(dir);
+        if (us.equals(Team.A)) {
+            MapLocation frontier = Messaging.getMostImportantFrontier();
+            if (frontier != null) {
+                self.setIndicatorLine(self.getLocation(), frontier, 0, 255, 255);
+                PathFinding.moveToBug0(frontier, 80);
+            } else {
+                int minDis = Integer.MAX_VALUE;
+                MapLocation minDisLoc = null;
+                for (int i = 0; i < initialArchonCount; i++) {
+                    MapLocation ourArchon = Messaging.getArchonLocation(i);
+                    if (self.getLocation().distanceSquaredTo(ourArchon) < minDis) {
+                        minDis = self.getLocation().distanceSquaredTo(ourArchon);
+                        minDisLoc = ourArchon;
+                    }
+                }
+                if (minDisLoc != null && minDis > 16) {
+                    PathFinding.moveToBug0(minDisLoc);
+                } else {
+                    PathFinding.wanderAvoidingObstacle(PathFinding.DEFAULT_OBSTACLE_THRESHOLD);
+                }
             }
-*/
-            PathFinding.moveToBug0(assemblyTarget, 80);
         } else {
-            rush();
+            if (Messaging.getGlobalTurnCount() < RUSH_PATIENCE) {
+                PathFinding.moveToBug0(assemblyTarget, 80);
+            } else {
+                rush();
+            }
         }
     }
 
     static void calculateEnemyArchons() throws GameActionException {
+        boolean partialSymmetry = false;
+        MapLocation[] ourArchons = new MapLocation[initialArchonCount];
+        for (int i = 0; i < initialArchonCount; i++)
+            ourArchons[i] = Messaging.getArchonLocation(i);
+        int oneLessWidth = self.getMapWidth() - 1;
+        int oneLessHeight = self.getMapHeight() - 1;
+        for (int i = 0; i < initialArchonCount; i++) {
+            for (int j = i + 1; j < initialArchonCount; j++) {
+                if (ourArchons[i].x + ourArchons[j].x == oneLessWidth
+                        && ourArchons[i].y + ourArchons[j].y == oneLessHeight) {
+                    partialSymmetry = true;
+                    break;
+                }
+            }
+            if (partialSymmetry)
+                break;
+        }
+
         enemyArchons = new MapLocation[initialArchonCount];
         int sumX = 0, sumY = 0;
         for (int i = 0; i < initialArchonCount; i++) {
-            MapLocation ourArchon = Messaging.readSharedLocation(Messaging.getArchonOffset(i));
-            sumX += ourArchon.x;
-            sumY += ourArchon.y;
-            enemyArchons[i] = new MapLocation(self.getMapWidth() - ourArchon.x - 1, self.getMapHeight() - ourArchon.y - 1);
+            sumX += ourArchons[i].x;
+            sumY += ourArchons[i].y;
+            enemyArchons[i] = new MapLocation(oneLessWidth - ourArchons[i].x,
+                    partialSymmetry ? ourArchons[i].y : oneLessHeight - ourArchons[i].y);
         }
         for (int i = 1; i < initialArchonCount - 1; i++) {
             int closest = i;

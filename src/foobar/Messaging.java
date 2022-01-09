@@ -2,6 +2,7 @@ package foobar;
 
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
+import battlecode.common.RobotInfo;
 
 /**
  * Messaging-related utility functions.
@@ -24,6 +25,10 @@ public class Messaging extends Globals {
      */
     public static final int PER_ARCHON_REGION_LENGTH = 4;
     /**
+     * Index of soldier count in archon region.
+     */
+    public static final int SOLDIER_COUNT = 1;
+    /**
      * End index of the archon region in the shared array.
      */
     public static final int ARCHON_REGION_END = ARCHON_REGION_START + 4 * PER_ARCHON_REGION_LENGTH;
@@ -35,6 +40,15 @@ public class Messaging extends Globals {
      * End index of the enemy dead archon region in the shared array.
      */
     public static final int DEAD_ARCHON_END = DEAD_ARCHON_START + 3;
+    /**
+     * Start index of the frontier region in the shared array.
+     */
+    public static final int FRONTIER_START = DEAD_ARCHON_END;
+    /**
+     * End index of the frontier region in the shared array.
+     */
+    public static final int FRONTIER_END = FRONTIER_START + 12;
+
 
     /**
      * Encodes a location as an integer.
@@ -53,7 +67,7 @@ public class Messaging extends Globals {
      * @return The encoded location.
      */
     public static MapLocation decodeLocation(int raw) {
-        return new MapLocation(raw >> 6, raw & 0x3F);
+        return new MapLocation((raw >> 6) & 0x3F, raw & 0x3F);
     }
 
     /**
@@ -86,6 +100,28 @@ public class Messaging extends Globals {
      */
     public static int getArchonOffset(int index) {
         return index * PER_ARCHON_REGION_LENGTH + ARCHON_REGION_START;
+    }
+
+    /**
+     * Gets the location of the archon with the given index.
+     *
+     * @param index The archon index.
+     * @return The archon location.
+     * @throws GameActionException If the index is invalid.
+     */
+    public static MapLocation getArchonLocation(int index) throws GameActionException {
+        return readSharedLocation(getArchonOffset(index));
+    }
+
+    /**
+     * Gets the number of soldiers made by the archon with the given index.
+     *
+     * @param index The archon index.
+     * @return The number of soldiers.
+     * @throws GameActionException If the index is invalid.
+     */
+    public static int getArchonSoldierCount(int index) throws GameActionException {
+        return self.readSharedArray(getArchonOffset(index) + SOLDIER_COUNT);
     }
 
     /**
@@ -149,10 +185,25 @@ public class Messaging extends Globals {
      * Reports a dead archon.
      *
      * @param loc The location of the dead archon.
-     * @throws GameActionException Actually doesn't throw.
+     * @throws GameActionException If the location is invalid.
      */
     public static void reportDeadArchon(MapLocation loc) throws GameActionException {
         tryAddInRange(DEAD_ARCHON_START, DEAD_ARCHON_END, encodeLocation(loc), IMPOSSIBLE_LOCATION);
+    }
+
+    /**
+     * Reports an enemy unit.
+     *
+     * @param loc The location of the enemy unit.
+     * @throws GameActionException If the location is invalid.
+     */
+    public static void reportEnemyUnit(MapLocation loc) throws GameActionException {
+        tryAddLocationInRange(FRONTIER_START, FRONTIER_END, loc, 6);
+    }
+
+    public static void reportAllEnemiesAround() throws GameActionException {
+        for (RobotInfo candidate : self.senseNearbyRobots(self.getType().visionRadiusSquared, them))
+            Messaging.reportEnemyUnit(candidate.getLocation());
     }
 
     /**
@@ -168,5 +219,37 @@ public class Messaging extends Globals {
             if (self.readSharedArray(i) == raw)
                 return true;
         return false;
+    }
+
+    public static MapLocation getMostImportantFrontier() throws GameActionException {
+        MapLocation here = self.getLocation();
+        int minDis = Integer.MAX_VALUE;
+        MapLocation minDisLoc = null;
+        for (int i = FRONTIER_START; i < FRONTIER_END; i++) {
+            int raw = self.readSharedArray(i);
+            if (raw == IMPOSSIBLE_LOCATION)
+                continue;
+            MapLocation loc = decodeLocation(raw);
+            if (loc.distanceSquaredTo(here) < minDis) {
+                minDis = loc.distanceSquaredTo(here);
+                minDisLoc = loc;
+            }
+        }
+        if (minDis < 10)
+            return minDisLoc;
+
+        for (int i = FRONTIER_START; i < FRONTIER_END; i++) {
+            int raw = self.readSharedArray(i);
+            if (raw == IMPOSSIBLE_LOCATION)
+                continue;
+            MapLocation loc = decodeLocation(raw);
+            for (int j = 0; j < initialArchonCount; j++) {
+                if (loc.distanceSquaredTo(getArchonLocation(j)) < minDis) {
+                    minDis = loc.distanceSquaredTo(here);
+                    minDisLoc = loc;
+                }
+            }
+        }
+        return minDisLoc;
     }
 }

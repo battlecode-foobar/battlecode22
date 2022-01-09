@@ -70,6 +70,8 @@ public strictfp class TypeMiner extends Globals {
             targetLoc = null;
         }
 
+        Messaging.reportAllEnemiesAround();
+
         // Always determine whether oneself is at target
         if (atTarget && self.senseLead(self.getLocation()) == 0)
             // if we were previously at target then target suddenly disappeared

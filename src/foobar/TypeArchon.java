@@ -47,11 +47,20 @@ public strictfp class TypeArchon extends Globals {
     public static void step() throws GameActionException {
         if (firstRun())
             init();
+
         if (inNegotiation)
             negotiate();
-        else
-            self.writeSharedArray(0, turnCount);
-        self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
+        self.writeSharedArray(0, turnCount);
+
+        if (rng.nextDouble() <= 1.0 / self.getArchonCount()) {
+            for (int i = 0; i < 3; i++) {
+                int index = Messaging.FRONTIER_START + rng.nextInt(Messaging.FRONTIER_END - Messaging.FRONTIER_START);
+                self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
+            }
+        }
+        Messaging.reportAllEnemiesAround();
+
+        // self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
         // This mostly the same as the lecture player.
         if (minerCount < 8) {
             tryBuildTowardsLowRubble(RobotType.MINER);
@@ -64,7 +73,19 @@ public strictfp class TypeArchon extends Globals {
         } else if (builderCount < soldierCount / 30) {
             tryBuildTowardsLowRubble(RobotType.BUILDER);
         } else {
-            tryBuildTowardsLowRubble(RobotType.SOLDIER);
+            int minSoldierCount = Integer.MAX_VALUE;
+            for (int i = 0; i < initialArchonCount; i++) {
+                int itsSoldierCount = Messaging.getArchonSoldierCount(i);
+                if (itsSoldierCount < minSoldierCount)
+                    minSoldierCount = itsSoldierCount;
+            }
+            self.setIndicatorString("min soldier count: " + minSoldierCount + " my soldier: " + soldierCount);
+            if (soldierCount == minSoldierCount)
+                tryBuildTowardsLowRubble(RobotType.SOLDIER);
+        }
+
+        if (turnCount > initialArchonCount) {
+            self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.SOLDIER_COUNT, soldierCount);
         }
     }
 
