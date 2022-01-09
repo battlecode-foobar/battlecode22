@@ -56,7 +56,7 @@ public strictfp class TypeMiner extends Globals {
     public static void step() throws GameActionException {
 
         /** How the miner works
-         *  Mining: try to mine gold, then lead, around itself
+         *  Mining: try to mine gold, then lead, around itself; this always happens
          *  Movement:
          *      If it has a target (a lead mine without another miner on top) then go for it using bug0
          *      Without a target, a miner wanders
@@ -70,24 +70,10 @@ public strictfp class TypeMiner extends Globals {
             targetLoc = null;
         }
 
-        Messaging.reportAllEnemiesAround();
-
         // Always determine whether oneself is at target
-        if (atTarget && self.senseLead(self.getLocation()) <= sustainableLeadThreshold)
+        if (atTarget && self.senseLead(self.getLocation()) == 0) // <= sustainableleadthreshold
             // if we were previously at target then target suddenly disappeared
-            // Send this one to journey elsewhere, for we have need of sterner stock
             targetLoc = null;
-
-        if (targetLoc == null) {
-            atTarget = false;
-            self.setIndicatorString("Wandering");
-        } else {
-            atTarget = self.getLocation().equals(targetLoc);
-            if (atTarget)
-                self.setIndicatorString("At target " + targetLoc);
-            else
-                self.setIndicatorString("Not at target " + targetLoc + " yet");
-        }
 
         tryMineResources();
 
@@ -95,12 +81,12 @@ public strictfp class TypeMiner extends Globals {
             // In the case that we have a target
             if (!self.getLocation().equals(targetLoc)) {
                 // We have a target and we have not reached it
-                // First, if we can sense the target verify it is still a good target (there's no miner occupying it)
+                // First, if we can sense the target verify it is still a good target
                 if (self.canSenseRobotAtLocation(targetLoc)) {
                     RobotInfo robotAtTarget = self.senseRobotAtLocation(targetLoc);
                     if (robotAtTarget.getType() == RobotType.MINER && robotAtTarget.getTeam() == us) {
+                        // If there the same miner has occupied our target for >1 round: nullify our current target
                         if (minerIDatTarget == robotAtTarget.getID()){
-                            // If there the same miner has occupied our target for >1 round: nullify our current target
                             minerIDatTarget = -1;
                             targetLoc = null;
                             wander();
@@ -116,22 +102,25 @@ public strictfp class TypeMiner extends Globals {
                 if (self.canSenseLocation(targetLoc) && self.senseRubble(targetLoc) > defaultObstacleThreshold)
                     PathFinding.moveToBug0(targetLoc, self.senseRubble(targetLoc));
                 PathFinding.moveToBug0(targetLoc);
+                self.setIndicatorString("Moving to target " + targetLoc);
             }
             else{
-                // We are only writing for the extreme case when our mine is depleted, in that case nullify
-                //      current target and search for a new one
+                // When our mine is depleted, in that case nullify current target and search for a new one
                 if (self.senseLead(targetLoc) == 0){
                     targetLoc = null;
                     wander();
                     searchForTarget();
                     return;
                 }
+
+                log("At target");
             }
         } else {
             // If we don't even have a target, then wander around
-            // TODO: wander in the general direction where there are no other robots
+            // TODO: Check the broadcasted queue and go for one
             wander();
             searchForTarget();
+            self.setIndicatorString("Wandering");
         }
     }
 
@@ -158,6 +147,8 @@ public strictfp class TypeMiner extends Globals {
             targetLoc = bestLocation;
             log("Droid " + self.getID() + " found lead amount " + mostLead + " @(" + targetLoc.x + "," + targetLoc.y + ")");
         }
+
+        Messaging.reportAllEnemiesAround();
     }
 
     static void wander() throws GameActionException {

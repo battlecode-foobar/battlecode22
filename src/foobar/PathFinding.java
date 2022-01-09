@@ -260,14 +260,13 @@ public class PathFinding extends Globals {
     static boolean notObstacle(Direction dir, int obstacleThreshold) throws GameActionException {
         // TODO: obstacle detection: perhaps rubble over a certain threshold?
         MapLocation there = self.getLocation().add(dir);
-        return self.senseRubble(there) <= obstacleThreshold && !self.canSenseRobotAtLocation(there);
+        return self.senseRubble(there) <= obstacleThreshold;
     }
 
     /**
      * Use Bug 0 algorithm to move to the target.
      *
      * @param dest The target.
-     * @param obstacleThreshold Any location with rubble exceeding this threshold will be considered an obstacle.
      * @throws GameActionException Actually doesn't throw.
      */
     public static void moveToBug0(MapLocation dest, int obstacleThreshold) throws GameActionException {

@@ -48,6 +48,11 @@ public class Messaging extends Globals {
      * End index of the frontier region in the shared array.
      */
     public static final int FRONTIER_END = FRONTIER_START + 12;
+    /**
+     * Start and end index of miner broadcast mine
+     */
+    public static final int MINER_START = FRONTIER_END;
+    public static final int MINER_END = FRONTIER_END + 16;
 
 
     /**
@@ -60,12 +65,7 @@ public class Messaging extends Globals {
         return (loc.x << 6) | loc.y;
     }
 
-    /**
-     * Decodes a location from an integer.
-     *
-     * @param raw The integer to be decoded;
-     * @return The encoded location.
-     */
+    // What is the "&255 supposed to mean??" also isn't 6 (2^6=64) enough
     public static MapLocation decodeLocation(int raw) {
         return new MapLocation((raw >> 6) & 0x3F, raw & 0x3F);
     }
