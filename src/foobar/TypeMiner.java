@@ -60,7 +60,7 @@ public strictfp class TypeMiner extends Globals {
             atTarget = false;
             self.setIndicatorString("Wandering");
         } else {
-            atTarget = here.equals(targetLocation);
+            atTarget = here.distanceSquaredTo(targetLocation) <= actionRadiusSq;
             if (atTarget)
                 self.setIndicatorString("At target " + targetLocation);
             else

@@ -40,6 +40,21 @@ public class Globals {
     };
 
     /**
+     * An array of directions with center included.
+     */
+    public static final Direction[] directionsWithMe = {
+            Direction.CENTER,
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
+    };
+
+    /**
      * Initialize everything.
      *
      * @param rc The RobotController instance given in RobotPlayer.class

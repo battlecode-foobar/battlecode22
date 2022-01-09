@@ -40,9 +40,13 @@ public strictfp class RobotPlayer extends Globals {
                         TypeMiner.step();
                         break;
                     case SOLDIER:
+                        TypeSoldier.step();
+                        break;
                     case LABORATORY:
                     case WATCHTOWER:
                     case BUILDER:
+                        TypeBuilder.step();
+                        break;
                     case SAGE:
                         break;
                 }
