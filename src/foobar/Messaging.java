@@ -29,6 +29,10 @@ public class Messaging extends Globals {
      */
     public static final int SOLDIER_COUNT = 1;
     /**
+     * Index of miner count in archon region.
+     */
+    public static final int MINER_COUNT = 2;
+    /**
      * End index of the archon region in the shared array.
      */
     public static final int ARCHON_REGION_END = ARCHON_REGION_START + 4 * PER_ARCHON_REGION_LENGTH;
@@ -122,6 +126,17 @@ public class Messaging extends Globals {
      */
     public static int getArchonSoldierCount(int index) throws GameActionException {
         return self.readSharedArray(getArchonOffset(index) + SOLDIER_COUNT);
+    }
+
+    /**
+     * Gets the number of miners made by the archon with the given index.
+     *
+     * @param index The archon index.
+     * @return The number of miners.
+     * @throws GameActionException If the index is invalid.
+     */
+    public static int getArchonMinerCount(int index) throws GameActionException {
+        return self.readSharedArray(getArchonOffset(index) + MINER_COUNT);
     }
 
     /**

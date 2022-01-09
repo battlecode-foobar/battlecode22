@@ -60,34 +60,36 @@ public strictfp class TypeArchon extends Globals {
         }
         Messaging.reportAllEnemiesAround();
 
+        int minSoldierCount = Integer.MAX_VALUE;
+        int minMinerCount = Integer.MAX_VALUE;
+        int totalMinerCount = 0;
+        for (int i = 0; i < initialArchonCount; i++) {
+            minSoldierCount = Math.min(minSoldierCount, Messaging.getArchonSoldierCount(i));
+            minMinerCount = Math.min(minMinerCount, Messaging.getArchonMinerCount(i));
+            totalMinerCount += Messaging.getArchonMinerCount(i);
+        }
+
         // self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
         // This mostly the same as the lecture player.
-        if (minerCount < 10) {
+        if (minerCount < 8) {
             tryBuildTowardsLowRubble(RobotType.MINER);
         } else if (soldierCount < 10) {
             tryBuildTowardsLowRubble(RobotType.SOLDIER);
         } else if (builderCount < 1) {
             tryBuildTowardsLowRubble(RobotType.BUILDER);
-//        } else if (minerCount < soldierCount * 2 / 10 && self.getTeamLeadAmount(us) < 5000) {
-//            tryBuildTowardsLowRubble(RobotType.MINER);
-        } else if (minerCount < soldierCount * 2 / 10 && self.getTeamLeadAmount(us) < 500) {
+        } else if (minerCount < soldierCount * 5 / 10 && self.getTeamLeadAmount(us) < 5000) {
             tryBuildTowardsLowRubble(RobotType.MINER);
-//        } else if (builderCount < soldierCount / 30) {
-//            tryBuildTowardsLowRubble(RobotType.BUILDER);
+        } else if (builderCount < soldierCount / 30) {
+            tryBuildTowardsLowRubble(RobotType.BUILDER);
         } else {
-            int minSoldierCount = Integer.MAX_VALUE;
-            for (int i = 0; i < initialArchonCount; i++) {
-                int itsSoldierCount = Messaging.getArchonSoldierCount(i);
-                if (itsSoldierCount < minSoldierCount)
-                    minSoldierCount = itsSoldierCount;
-            }
             self.setIndicatorString("min soldier count: " + minSoldierCount + " my soldier: " + soldierCount);
-            if (soldierCount == minSoldierCount)
+            if (soldierCount <= minSoldierCount + 100)
                 tryBuildTowardsLowRubble(RobotType.SOLDIER);
         }
 
         if (turnCount > initialArchonCount) {
             self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.SOLDIER_COUNT, soldierCount);
+            self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.MINER_COUNT, minerCount);
         }
     }
 

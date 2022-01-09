@@ -3,20 +3,16 @@ package foobar;
 import battlecode.common.*;
 
 public class TypeSoldier extends Globals {
-    static final int RUSH_PATIENCE = 800;
-
-    enum Role {
-        RUSHER,
-        REINFORCEMENT,
-        WANDERER,
-    }
+    static final int RUSH_PATIENCE = 500;
 
     static MapLocation assemblyTarget;
     static MapLocation[] enemyArchons;
+    static boolean rusher;
 
     public static void step() throws GameActionException {
         if (firstRun()) {
             // RUSH_PATIENCE = us.equals(Team.A) ? 400 : 500;
+            rusher = Messaging.getGlobalTurnCount() > RUSH_PATIENCE;
             calculateEnemyArchons();
         }
 
@@ -49,32 +45,39 @@ public class TypeSoldier extends Globals {
             }
         }
 
-        if (us.equals(Team.A)) {
-            MapLocation frontier = Messaging.getMostImportantFrontier();
-            if (frontier != null) {
-                self.setIndicatorLine(self.getLocation(), frontier, 0, 255, 255);
-                PathFinding.moveToBug0(frontier, 80);
-            } else {
-                int minDis = Integer.MAX_VALUE;
-                MapLocation minDisLoc = null;
-                for (int i = 0; i < initialArchonCount; i++) {
-                    MapLocation ourArchon = Messaging.getArchonLocation(i);
-                    if (self.getLocation().distanceSquaredTo(ourArchon) < minDis) {
-                        minDis = self.getLocation().distanceSquaredTo(ourArchon);
-                        minDisLoc = ourArchon;
-                    }
-                }
-                if (minDisLoc != null && minDis > 16) {
-                    PathFinding.moveToBug0(minDisLoc);
-                } else {
-                    PathFinding.wanderAvoidingObstacle(PathFinding.DEFAULT_OBSTACLE_THRESHOLD);
-                }
-            }
+        if (!rusher) {
+            supportFrontier();
         } else {
             if (Messaging.getGlobalTurnCount() < RUSH_PATIENCE) {
                 PathFinding.moveToBug0(assemblyTarget, 80);
             } else {
                 rush();
+            }
+        }
+    }
+
+    static void supportFrontier() throws GameActionException {
+        MapLocation frontier = Messaging.getMostImportantFrontier();
+        if (frontier != null) {
+            self.setIndicatorLine(self.getLocation(), frontier, 0, 255, 255);
+            if (frontier.distanceSquaredTo(self.getLocation()) < 400)
+                PathFinding.moveToBug0(frontier, 80);
+            else
+                PathFinding.wanderAvoidingObstacle(PathFinding.DEFAULT_OBSTACLE_THRESHOLD);
+        } else {
+            int minDis = Integer.MAX_VALUE;
+            MapLocation minDisLoc = null;
+            for (int i = 0; i < initialArchonCount; i++) {
+                MapLocation ourArchon = Messaging.getArchonLocation(i);
+                if (self.getLocation().distanceSquaredTo(ourArchon) < minDis) {
+                    minDis = self.getLocation().distanceSquaredTo(ourArchon);
+                    minDisLoc = ourArchon;
+                }
+            }
+            if (minDisLoc != null && minDis > 16) {
+                PathFinding.moveToBug0(minDisLoc);
+            } else {
+                PathFinding.wanderAvoidingObstacle(PathFinding.DEFAULT_OBSTACLE_THRESHOLD);
             }
         }
     }
