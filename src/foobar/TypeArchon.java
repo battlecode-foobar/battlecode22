@@ -43,6 +43,8 @@ public strictfp class TypeArchon extends Globals {
         minerCount = 0;
         soldierCount = 0;
         builderCount = 0;
+        for (int i = 17; i < 21; i++)
+            self.writeSharedArray(i, Messaging.IMPOSSIBLE_LOCATION);
         /*
         int before = Clock.getBytecodesLeft();
         MapLocation target = null;
@@ -67,7 +69,7 @@ public strictfp class TypeArchon extends Globals {
             init();
         if (inNegotiation)
             negotiate();
-        else if (archonIndex == 0)
+        else
             self.writeSharedArray(0, turnCount);
         self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
         // This mostly the same as the lecture player.
