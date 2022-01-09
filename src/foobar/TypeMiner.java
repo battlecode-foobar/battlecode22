@@ -40,7 +40,7 @@ public strictfp class TypeMiner extends Globals {
     /**
      * A miner will not mine lead beneath this threshold
      */
-    static final int sustainableLeadThreshold = 12;
+    static final int sustainableLeadThreshold = 1;
     static Direction[] canTryMine = {
             Direction.CENTER,
             Direction.NORTH,
@@ -71,8 +71,9 @@ public strictfp class TypeMiner extends Globals {
         }
 
         // Always determine whether oneself is at target
-        if (atTarget && self.senseLead(self.getLocation()) == 0)
+        if (atTarget && self.senseLead(self.getLocation()) <= sustainableLeadThreshold)
             // if we were previously at target then target suddenly disappeared
+            // Send this one to journey elsewhere, for we have need of sterner stock
             targetLoc = null;
 
         if (targetLoc == null) {
@@ -101,6 +102,7 @@ public strictfp class TypeMiner extends Globals {
                             minerIDatTarget = -1;
                             targetLoc = null;
                             wander();
+                            // Another miner, its dream battered and broken, in search of a new life
                             searchForTarget();
                             return;
                         }
@@ -174,7 +176,7 @@ public strictfp class TypeMiner extends Globals {
             // You can mine multiple times per turn!
             while (self.canMineGold(mineLocation))
                 self.mineGold(mineLocation);
-            while (self.canMineLead(mineLocation) && self.senseLead(mineLocation) >= sustainableLeadThreshold)
+            while (self.canMineLead(mineLocation) && self.senseLead(mineLocation) > sustainableLeadThreshold)
                 self.mineLead(mineLocation);
         }
     }

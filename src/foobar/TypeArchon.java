@@ -53,16 +53,18 @@ public strictfp class TypeArchon extends Globals {
             self.writeSharedArray(0, turnCount);
         self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
         // This mostly the same as the lecture player.
-        if (minerCount < 8) {
+        if (minerCount < 10) {
             tryBuildTowardsLowRubble(RobotType.MINER);
         } else if (soldierCount < 10) {
             tryBuildTowardsLowRubble(RobotType.SOLDIER);
         } else if (builderCount < 1) {
             tryBuildTowardsLowRubble(RobotType.BUILDER);
-        } else if (minerCount < soldierCount * 2 / 10 && self.getTeamLeadAmount(us) < 5000) {
+//        } else if (minerCount < soldierCount * 2 / 10 && self.getTeamLeadAmount(us) < 5000) {
+//            tryBuildTowardsLowRubble(RobotType.MINER);
+        } else if (minerCount < soldierCount * 2 / 10 && self.getTeamLeadAmount(us) < 500) {
             tryBuildTowardsLowRubble(RobotType.MINER);
-        } else if (builderCount < soldierCount / 30) {
-            tryBuildTowardsLowRubble(RobotType.BUILDER);
+//        } else if (builderCount < soldierCount / 30) {
+//            tryBuildTowardsLowRubble(RobotType.BUILDER);
         } else {
             tryBuildTowardsLowRubble(RobotType.SOLDIER);
         }
