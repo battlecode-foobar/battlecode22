@@ -31,6 +31,10 @@ public strictfp class TypeMiner extends Globals {
      */
     static int minerIDatTarget = -1;
     /**
+     * As name
+     */
+    static int defaultObstacleThreshold = 25;
+    /**
      * All directions relative to our current position where we can try look for metals and try mine.
      */
     /**
@@ -105,6 +109,8 @@ public strictfp class TypeMiner extends Globals {
                     }
                 }
                 // In all other cases move towards our current target
+                if (self.canSenseLocation(targetLoc) && self.senseRubble(targetLoc) > defaultObstacleThreshold)
+                    PathFinding.moveToBug0(targetLoc, self.senseRubble(targetLoc));
                 PathFinding.moveToBug0(targetLoc);
             }
             else{

@@ -10,6 +10,7 @@ import java.util.*;
  * Very naive path finding.
  */
 public class PathFinding extends Globals {
+    public final static int defaultObstacleThreshold = 32;
     /**
      * A path.
      */
@@ -256,10 +257,10 @@ public class PathFinding extends Globals {
      * @param dir The direction.
      * @return If cell in the direction can be considered an obstacle.
      */
-    static boolean notObstacle(Direction dir) throws GameActionException {
+    static boolean notObstacle(Direction dir, int obstacleThreshold) throws GameActionException {
         // TODO: obstacle detection: perhaps rubble over a certain threshold?
         MapLocation there = self.getLocation().add(dir);
-        return self.senseRubble(there) <= 50;
+        return self.senseRubble(there) <= obstacleThreshold;
     }
 
     /**
@@ -268,6 +269,30 @@ public class PathFinding extends Globals {
      * @param dest The target.
      * @throws GameActionException Actually doesn't throw.
      */
+    public static void moveToBug0(MapLocation dest, int obstacleThreshold) throws GameActionException {
+        if (!self.isMovementReady())
+            return;
+        MapLocation here = self.getLocation();
+        if (here.equals(dest))
+            return;
+        Direction dir = here.directionTo(dest);
+        if (self.canMove(dir) && notObstacle(dir, obstacleThreshold)) {
+            self.move(dir);
+            bugDirection = null;
+        } else {
+            if (bugDirection == null)
+                bugDirection = dir;
+            for (int i = 0; i < 8; i++) {
+                if (self.canMove(bugDirection) && notObstacle(bugDirection, obstacleThreshold)) {
+                    self.move(bugDirection);
+                    bugDirection = bugDirection.rotateLeft();
+                    break;
+                } else
+                    bugDirection = bugDirection.rotateRight();
+            }
+        }
+    }
+
     public static void moveToBug0(MapLocation dest) throws GameActionException {
         if (!self.isMovementReady())
             return;
@@ -275,14 +300,14 @@ public class PathFinding extends Globals {
         if (here.equals(dest))
             return;
         Direction dir = here.directionTo(dest);
-        if (self.canMove(dir) && notObstacle(dir)) {
+        if (self.canMove(dir) && notObstacle(dir, defaultObstacleThreshold)) {
             self.move(dir);
             bugDirection = null;
         } else {
             if (bugDirection == null)
                 bugDirection = dir;
             for (int i = 0; i < 8; i++) {
-                if (self.canMove(bugDirection) && notObstacle(bugDirection)) {
+                if (self.canMove(bugDirection) && notObstacle(bugDirection, defaultObstacleThreshold)) {
                     self.move(bugDirection);
                     bugDirection = bugDirection.rotateLeft();
                     break;
