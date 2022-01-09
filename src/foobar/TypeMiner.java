@@ -2,6 +2,7 @@ package foobar;
 
 import battlecode.common.Direction;
 import battlecode.common.RobotInfo;
+import battlecode.common.RobotType;
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 
@@ -12,7 +13,7 @@ public strictfp class TypeMiner extends Globals {
     /**
      * The target location the miner is trying to approach.
      */
-    static MapLocation targetLocation;
+    static MapLocation targetLoc;
     /**
      * The cached vision radius.
      */
@@ -25,9 +26,15 @@ public strictfp class TypeMiner extends Globals {
      * If we are at our target.
      */
     static Boolean atTarget = false;
+
+    static int minerIDatTarget = null;
     /**
      * All directions relative to our current position where we can try look for metals and try mine.
      */
+    /**
+     * A miner will not mine lead beneath this threshold
+     */
+    static final int sustainableLeadThreshold = 12;
     static Direction[] canTryMine = {
             Direction.CENTER,
             Direction.NORTH,
@@ -41,12 +48,20 @@ public strictfp class TypeMiner extends Globals {
     };
 
     public static void step() throws GameActionException {
+
+        /** How the miner works
+         *  Mining: try to mine gold, then lead, around itself
+         *  Movement:
+         *      If it has a target (a lead mine without another miner on top) then go for it using bug0
+         *      Without a target, a miner wanders
+         */
+
         // Initialization: Scan for target and update radius
         if (firstRun()) {
             searchForTarget();
             visionRadiusSq = self.getType().visionRadiusSquared;
             actionRadiusSq = self.getType().actionRadiusSquared;
-            targetLocation = null;
+            targetLoc = null;
         }
 
 
@@ -54,17 +69,17 @@ public strictfp class TypeMiner extends Globals {
         // Always determine whether oneself is at target
         if (atTarget && self.senseLead(here) == 0)
             // if we were previously at target then target suddenly disappeared
-            targetLocation = null;
+            targetLoc = null;
 
-        if (targetLocation == null) {
+        if (targetLoc == null) {
             atTarget = false;
             self.setIndicatorString("Wandering");
         } else {
-            atTarget = here.distanceSquaredTo(targetLocation) <= actionRadiusSq;
+            atTarget = here.equals(targetLoc);
             if (atTarget)
-                self.setIndicatorString("At target " + targetLocation);
+                self.setIndicatorString("At target " + targetLoc);
             else
-                self.setIndicatorString("Not at target " + targetLocation + " yet");
+                self.setIndicatorString("Not at target " + targetLoc + " yet");
         }
 
         // Try to mine on squares around us.
@@ -82,16 +97,17 @@ public strictfp class TypeMiner extends Globals {
         if (hasTarget()) {
             // If we have a target, we have either reached it or not
             // We don't need to do anything if we are at the target (we'll just continue mining by default)
-            if (!here.equals(targetLocation)) {
-                if (!validTarget(targetLocation)) {
-                    targetLocation = null;
+            if (!here.equals(targetLoc)) {
+                if (!validTarget(targetLoc)) {
+                    targetLoc = null;
                     wander();
                     searchForTarget();
                 } else {
                     // go towards the current target
-                    PathFinding.moveToBug0(targetLocation);
+                    PathFinding.moveToBug0(targetLoc);
                     // If we found a better target along the way, go to it
                     searchForTarget();
+                    return;
                 }
             }
         } else {
@@ -104,7 +120,7 @@ public strictfp class TypeMiner extends Globals {
 
     // returns whether the robot has a target
     public static boolean hasTarget() {
-        return targetLocation != null;
+        return targetLoc != null;
     }
 
     static void searchForTarget() throws GameActionException {
@@ -124,8 +140,8 @@ public strictfp class TypeMiner extends Globals {
         }
 
         if (mostLead > 0) {
-            targetLocation = bestLocation;
-            log("Droid " + self.getID() + " found lead amount " + mostLead + " @(" + targetLocation.x + "," + targetLocation.y + ")");
+            targetLoc = bestLocation;
+            log("Droid " + self.getID() + " found lead amount " + mostLead + " @(" + targetLoc.x + "," + targetLoc.y + ")");
         }
     }
 
@@ -153,6 +169,19 @@ public strictfp class TypeMiner extends Globals {
         Direction dir = directions[rng.nextInt(directions.length)];
         if (self.canMove(dir)) {
             self.move(dir);
+        }
+    }
+
+    static void tryMineResources() throws GameActionException {
+        // Try to mine on squares around us.
+        for (Direction dir : canTryMine) {
+            MapLocation mineLocation = self.getLocation().add(dir);
+            // Notice that the Miner's action cool down is very low.
+            // You can mine multiple times per turn!
+            while (self.canMineGold(mineLocation))
+                self.mineGold(mineLocation);
+            while (self.canMineLead(mineLocation) && self.senseLead(mineLocation) >= sustainableLeadThreshold)
+                self.mineLead(mineLocation);
         }
     }
 }
