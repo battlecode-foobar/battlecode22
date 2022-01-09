@@ -2,6 +2,9 @@ package foobar;
 
 import battlecode.common.*;
 
+import java.util.Arrays;
+
+
 /**
  * Main controller logic for an Archon unit.
  */
@@ -10,29 +13,39 @@ public strictfp class TypeArchon extends Globals {
      * How many bytes an archon can use in the shared array.
      */
     public static final int ARCHON_SPACE = 4;
-    /**
-     * The maximum number of miners this archon is going to make.
-     */
-    public static final int MAX_MINER = 8;
 
-    static State state;
+    /**
+     * If we are in negotiation right now.
+     */
+    static boolean inNegotiation;
+    /**
+     * The relative index of the current archon relative to all archons. Guaranteed to be unique and falls in
+     * [0, total archon count).
+     */
     static int archonIndex;
-    static int minerCount = 0;
+    /**
+     * Number of miners built.
+     */
+    static int minerCount;
+    /**
+     * Number of soldiers built.
+     */
+    static int soldierCount;
+    /**
+     * Number of builders built.
+     */
+    static int builderCount;
     /**
      * Offset into shared array.
      */
     static int sharedOffset;
 
-    enum State {
-        NEGOTIATING,
-        BUILDING_MINER,
-    }
 
     public static void init() throws GameActionException {
-        if (self.getArchonCount() > 1) // Enter a negotiation to determine the order of itself.
-            state = State.NEGOTIATING;
-        else
-            state = State.BUILDING_MINER;
+        inNegotiation = self.getArchonCount() > 1;
+        minerCount = 0;
+        soldierCount = 0;
+        builderCount = 0;
         /*
         int before = Clock.getBytecodesLeft();
         MapLocation target = null;
@@ -55,15 +68,22 @@ public strictfp class TypeArchon extends Globals {
     public static void step() throws GameActionException {
         if (firstRun())
             init();
-        switch (state) {
-            case NEGOTIATING:
-                negotiate();
-                tryBuildMiner();
-                // what if we simply don't break?
-                break;
-            case BUILDING_MINER:
-                tryBuildMiner();
-                break;
+        if (inNegotiation)
+            negotiate();
+        self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
+        // This mostly the same as the lecture player.
+        if (minerCount < 8) {
+            tryBuildTowardsLowRubble(RobotType.MINER);
+        } else if (soldierCount < 10) {
+            tryBuildTowardsLowRubble(RobotType.SOLDIER);
+        } else if (builderCount < 1) {
+            tryBuildTowardsLowRubble(RobotType.BUILDER);
+        } else if (minerCount < soldierCount * 9 / 10 && self.getTeamLeadAmount(us) < 5000) {
+            tryBuildTowardsLowRubble(RobotType.MINER);
+        } else if (builderCount < soldierCount / 30) {
+            tryBuildTowardsLowRubble(RobotType.BUILDER);
+        } else {
+            tryBuildTowardsLowRubble(RobotType.SOLDIER);
         }
     }
 
@@ -79,7 +99,7 @@ public strictfp class TypeArchon extends Globals {
                 log("Negotiate complete! I get index of " + archonIndex);
                 sharedOffset = archonIndex * ARCHON_SPACE;
                 self.writeSharedArray(sharedOffset, Messaging.encodeLocation(self.getLocation()));
-                state = State.BUILDING_MINER; // Exit negotiation.
+                inNegotiation = false;
                 return;
             }
         }
@@ -105,13 +125,45 @@ public strictfp class TypeArchon extends Globals {
     }
 
     /**
-     * Try build a miner around self.
+     * Safely sense the amount of rubble in the given direction.
+     *
+     * @param dir The direction to which to sense rubble.
+     * @return The amount of rubble in that direction. An impractically large value is returned if the direction is
+     * invalid.
      */
-    public static void tryBuildMiner() throws GameActionException {
-        for (Direction dir : directions) {
-            if (self.canBuildRobot(RobotType.MINER, dir) && minerCount <= MAX_MINER) {
-                self.buildRobot(RobotType.MINER, dir);
-                minerCount++;
+    static int senseRubbleSafe(Direction dir) {
+        try {
+            MapLocation loc = self.getLocation().add(dir);
+            return self.canSenseLocation(loc) ? self.senseRubble(loc) : Integer.MAX_VALUE;
+        } catch (GameActionException e) {
+            e.printStackTrace();
+            return Integer.MAX_VALUE;
+        }
+    }
+
+    /**
+     * Try to build a robot towards an available surrounding location with the least rubble available.
+     *
+     * @param type The type of robot to be built.
+     * @throws GameActionException Actually it doesn't throw.
+     */
+    static void tryBuildTowardsLowRubble(RobotType type) throws GameActionException {
+        Direction[] dirs = Arrays.copyOf(directions, directions.length);
+        Arrays.sort(dirs, (a, b) -> senseRubbleSafe(a) - senseRubbleSafe(b));
+        for (Direction dir : dirs) {
+            if (self.canBuildRobot(type, dir)) {
+                self.buildRobot(type, dir);
+                switch (type) {
+                    case MINER:
+                        minerCount++;
+                        break;
+                    case SOLDIER:
+                        soldierCount++;
+                        break;
+                    case BUILDER:
+                        builderCount++;
+                        break;
+                }
                 break;
             }
         }
