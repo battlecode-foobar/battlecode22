@@ -294,26 +294,6 @@ public class PathFinding extends Globals {
     }
 
     public static void moveToBug0(MapLocation dest) throws GameActionException {
-        if (!self.isMovementReady())
-            return;
-        MapLocation here = self.getLocation();
-        if (here.equals(dest))
-            return;
-        Direction dir = here.directionTo(dest);
-        if (self.canMove(dir) && notObstacle(dir, defaultObstacleThreshold)) {
-            self.move(dir);
-            bugDirection = null;
-        } else {
-            if (bugDirection == null)
-                bugDirection = dir;
-            for (int i = 0; i < 8; i++) {
-                if (self.canMove(bugDirection) && notObstacle(bugDirection, defaultObstacleThreshold)) {
-                    self.move(bugDirection);
-                    bugDirection = bugDirection.rotateLeft();
-                    break;
-                } else
-                    bugDirection = bugDirection.rotateRight();
-            }
-        }
+        moveToBug0(dest, defaultObstacleThreshold);
     }
 }

@@ -1,25 +1,24 @@
 package foobar;
 
+import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 
-public class Messaging {
-    public static int encodeLocation(MapLocation loc) {
-        return (loc.x << 8) | loc.y;
+public class Messaging extends Globals {
+    public static void writeSharedLocation(int index, MapLocation loc) throws GameActionException {
+        self.writeSharedArray(index, (loc.x << 6) | loc.y);
     }
 
     // What is the "&255 supposed to mean??" also isn't 6 (2^6=64) enough
-    public static MapLocation decodeLocation(int raw) {
-        return new MapLocation(raw >> 8, raw & 255);
+    public static MapLocation readSharedLocation(int index) throws GameActionException {
+        int raw = self.readSharedArray(index);
+        return new MapLocation(raw >> 6, raw & 0x3F);
     }
 
-    /**
-     * Encode locations [0, 60)x[0, 60] into a single integer (to write into shared memory)
-     */
-    // public static int encodeLocation(MapLocation loc) {return loc.x * 60 + loc.y;}
+    public static int getArchonOffset(int index) {
+        return index * 4 + 1;
+    }
 
-    /**
-     * Decodes MapLocation from integer
-     */
-     // public static MapLocation decodeLocation(int encoded_location) {return
-     //       new MapLocation((encoded_location-encoded_location%60) / 60, encoded_location%60);}
+    public static int getGlobalTurnCount() throws GameActionException {
+        return self.readSharedArray(0);
+    }
 }

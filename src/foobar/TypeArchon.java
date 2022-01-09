@@ -10,11 +10,6 @@ import java.util.Arrays;
  */
 public strictfp class TypeArchon extends Globals {
     /**
-     * How many bytes an archon can use in the shared array.
-     */
-    public static final int ARCHON_SPACE = 4;
-
-    /**
      * If we are in negotiation right now.
      */
     static boolean inNegotiation;
@@ -43,6 +38,8 @@ public strictfp class TypeArchon extends Globals {
 
     public static void init() throws GameActionException {
         inNegotiation = self.getArchonCount() > 1;
+        if (!inNegotiation)
+            Messaging.writeSharedLocation(Messaging.getArchonOffset(0), self.getLocation());
         minerCount = 0;
         soldierCount = 0;
         builderCount = 0;
@@ -70,6 +67,8 @@ public strictfp class TypeArchon extends Globals {
             init();
         if (inNegotiation)
             negotiate();
+        else if (archonIndex == 0)
+            self.writeSharedArray(0, turnCount);
         self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
         // This mostly the same as the lecture player.
         if (minerCount < 8) {
@@ -78,7 +77,7 @@ public strictfp class TypeArchon extends Globals {
             tryBuildTowardsLowRubble(RobotType.SOLDIER);
         } else if (builderCount < 1) {
             tryBuildTowardsLowRubble(RobotType.BUILDER);
-        } else if (minerCount < soldierCount * 9 / 10 && self.getTeamLeadAmount(us) < 5000) {
+        } else if (minerCount < soldierCount * 2 / 10 && self.getTeamLeadAmount(us) < 5000) {
             tryBuildTowardsLowRubble(RobotType.MINER);
         } else if (builderCount < soldierCount / 30) {
             tryBuildTowardsLowRubble(RobotType.BUILDER);
@@ -94,16 +93,15 @@ public strictfp class TypeArchon extends Globals {
      */
     public static void negotiate() throws GameActionException {
         if (turnCount > 0) { // If at least one turn elapsed.
-            if (self.readSharedArray(turnCount - 1) == self.getID()) {
+            if (self.readSharedArray(turnCount) == self.getID()) {
                 archonIndex = turnCount - 1;
                 log("Negotiate complete! I get index of " + archonIndex);
-                sharedOffset = archonIndex * ARCHON_SPACE;
-                self.writeSharedArray(sharedOffset, Messaging.encodeLocation(self.getLocation()));
+                Messaging.writeSharedLocation(Messaging.getArchonOffset(archonIndex), self.getLocation());
                 inNegotiation = false;
                 return;
             }
         }
-        self.writeSharedArray(turnCount, self.getID());
+        self.writeSharedArray(turnCount + 1, self.getID());
     }
 
     /**
@@ -115,7 +113,7 @@ public strictfp class TypeArchon extends Globals {
     public static int whoBuiltMe() throws GameActionException {
         MapLocation here = self.getLocation();
         for (int i = 0; i < self.getArchonCount(); i++) {
-            MapLocation thisArchon = Messaging.decodeLocation(self.readSharedArray(i * ARCHON_SPACE));
+            MapLocation thisArchon = Messaging.readSharedLocation(self.readSharedArray(Messaging.getArchonOffset(i)));
             if (thisArchon.isAdjacentTo(here)) {
                 return i;
             }
