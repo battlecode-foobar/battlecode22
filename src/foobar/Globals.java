@@ -17,6 +17,7 @@ public class Globals {
     public static RobotController self;
     public static Team us;
     public static Team them;
+    public static int initialArchonCount;
     /**
      * A 0-based turn count counter.
      */
@@ -65,6 +66,7 @@ public class Globals {
         them = us.opponent();
         // This will quickly become 0 as stepGlobals() will be called.
         turnCount = -1;
+        initialArchonCount = self.getArchonCount();
     }
 
     /**

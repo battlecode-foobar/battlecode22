@@ -10,7 +10,7 @@ import java.util.*;
  * Very naive path finding.
  */
 public class PathFinding extends Globals {
-    public final static int defaultObstacleThreshold = 32;
+    public final static int DEFAULT_OBSTACLE_THRESHOLD = 42;
     /**
      * A path.
      */
@@ -260,13 +260,14 @@ public class PathFinding extends Globals {
     static boolean notObstacle(Direction dir, int obstacleThreshold) throws GameActionException {
         // TODO: obstacle detection: perhaps rubble over a certain threshold?
         MapLocation there = self.getLocation().add(dir);
-        return self.senseRubble(there) <= obstacleThreshold;
+        return self.senseRubble(there) <= obstacleThreshold && !self.canSenseRobotAtLocation(there);
     }
 
     /**
      * Use Bug 0 algorithm to move to the target.
      *
      * @param dest The target.
+     * @param obstacleThreshold Any location with rubble exceeding this threshold will be considered an obstacle.
      * @throws GameActionException Actually doesn't throw.
      */
     public static void moveToBug0(MapLocation dest, int obstacleThreshold) throws GameActionException {
@@ -293,7 +294,36 @@ public class PathFinding extends Globals {
         }
     }
 
+    /**
+     * Use Bug 0 algorithm to move to the target.
+     *
+     * @param dest The target.
+     * @throws GameActionException Actually doesn't throw.
+     */
     public static void moveToBug0(MapLocation dest) throws GameActionException {
-        moveToBug0(dest, defaultObstacleThreshold);
+        moveToBug0(dest, DEFAULT_OBSTACLE_THRESHOLD);
+    }
+
+    /**
+     * Randomly wander.
+     *
+     * @throws GameActionException Actually doesn't throw.
+     */
+    public static void wander() throws GameActionException {
+        Direction dir = directions[rng.nextInt(directions.length)];
+        if (self.canMove(dir))
+            self.move(dir);
+    }
+
+    /**
+     * Randomly wander, but avoids obstacles.
+     *
+     * @param threshold The robot will avoid wandering to locations with rubbles exceeding this threshold.
+     * @throws GameActionException Actually doesn't throw.
+     */
+    public static void wanderAvoidingObstacle(int threshold) throws GameActionException {
+        Direction dir = directions[rng.nextInt(directions.length)];
+        if (self.canMove(dir) && notObstacle(dir, threshold))
+            self.move(dir);
     }
 }
