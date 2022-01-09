@@ -12,7 +12,7 @@ public class TypeSoldier extends Globals {
     public static void step() throws GameActionException {
         if (firstRun()) {
             // RUSH_PATIENCE = us.equals(Team.A) ? 400 : 500;
-            rusher = Messaging.getGlobalTurnCount() > RUSH_PATIENCE;
+            rusher = Messaging.getGlobalTurnCount() < RUSH_PATIENCE;
             calculateEnemyArchons();
         }
 
@@ -49,6 +49,7 @@ public class TypeSoldier extends Globals {
             supportFrontier();
         } else {
             if (Messaging.getGlobalTurnCount() < RUSH_PATIENCE) {
+                self.setIndicatorString("assemble at " + assemblyTarget);
                 PathFinding.moveToBug0(assemblyTarget, 80);
             } else {
                 rush();
