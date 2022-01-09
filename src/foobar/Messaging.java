@@ -128,6 +128,20 @@ public class Messaging extends Globals {
         return self.readSharedArray(getArchonOffset(index) + SOLDIER_COUNT);
     }
 
+
+    /**
+     * Gets the total number of soldiers made by all archons.
+     *
+     * @return The number of soldiers.
+     * @throws GameActionException If the index is invalid.
+     */
+    public static int getTotalSoldierCount() throws GameActionException {
+        int total = 0;
+        for (int i = 0; i < initialArchonCount; i++)
+            total += getArchonSoldierCount(i);
+        return total;
+    }
+
     /**
      * Gets the number of miners made by the archon with the given index.
      *
@@ -137,6 +151,19 @@ public class Messaging extends Globals {
      */
     public static int getArchonMinerCount(int index) throws GameActionException {
         return self.readSharedArray(getArchonOffset(index) + MINER_COUNT);
+    }
+
+    /**
+     * Gets the total number of miners made by all archons.
+     *
+     * @return The number of miners.
+     * @throws GameActionException If the index is invalid.
+     */
+    public static int getTotalMinerCount() throws GameActionException {
+        int total = 0;
+        for (int i = 0; i < initialArchonCount; i++)
+            total += getArchonMinerCount(i);
+        return total;
     }
 
     /**
@@ -216,6 +243,10 @@ public class Messaging extends Globals {
         tryAddLocationInRange(FRONTIER_START, FRONTIER_END, loc, 6);
     }
 
+    /**
+     * Reports all enemies around the robot.
+     * @throws GameActionException Actually doesn't throw.
+     */
     public static void reportAllEnemiesAround() throws GameActionException {
         for (RobotInfo candidate : self.senseNearbyRobots(self.getType().visionRadiusSquared, them))
             Messaging.reportEnemyUnit(candidate.getLocation());
