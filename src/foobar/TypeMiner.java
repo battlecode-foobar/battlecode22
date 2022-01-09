@@ -26,8 +26,10 @@ public strictfp class TypeMiner extends Globals {
      * If we are at our target.
      */
     static Boolean atTarget = false;
-
-    static int minerIDatTarget = null;
+    /**
+     * Record the miner ID at target (if there is any)
+     */
+    static int minerIDatTarget = -1;
     /**
      * All directions relative to our current position where we can try look for metals and try mine.
      */
@@ -64,10 +66,8 @@ public strictfp class TypeMiner extends Globals {
             targetLoc = null;
         }
 
-
-        MapLocation here = self.getLocation();
         // Always determine whether oneself is at target
-        if (atTarget && self.senseLead(here) == 0)
+        if (atTarget && self.senseLead(self.getLocation()) == 0)
             // if we were previously at target then target suddenly disappeared
             targetLoc = null;
 
@@ -75,37 +75,44 @@ public strictfp class TypeMiner extends Globals {
             atTarget = false;
             self.setIndicatorString("Wandering");
         } else {
-            atTarget = here.equals(targetLoc);
+            atTarget = self.getLocation().equals(targetLoc);
             if (atTarget)
                 self.setIndicatorString("At target " + targetLoc);
             else
                 self.setIndicatorString("Not at target " + targetLoc + " yet");
         }
 
-        // Try to mine on squares around us.
-        for (Direction dir : canTryMine) {
-            MapLocation mineLocation = here.add(dir);
-            // Notice that the Miner's action cool down is very low.
-            // You can mine multiple times per turn!
-            while (self.canMineGold(mineLocation))
-                self.mineGold(mineLocation);
-            while (self.canMineLead(mineLocation) && self.senseLead(mineLocation) >= 16)
-                self.mineLead(mineLocation);
-        }
+        tryMineResources();
 
-        // Main body of each turn
-        if (hasTarget()) {
-            // If we have a target, we have either reached it or not
-            // We don't need to do anything if we are at the target (we'll just continue mining by default)
-            if (!here.equals(targetLoc)) {
-                if (!validTarget(targetLoc)) {
+        if (targetLoc != null) {
+            // In the case that we have a target
+            if (!self.getLocation().equals(targetLoc)) {
+                // We have a target and we have not reached it
+                // First, if we can sense the target verify it is still a good target (there's no miner occupying it)
+                if (self.canSenseRobotAtLocation(targetLoc)) {
+                    RobotInfo robotAtTarget = self.senseRobotAtLocation(targetLoc);
+                    if (robotAtTarget.getType() == RobotType.MINER && robotAtTarget.getTeam() == us) {
+                        if (minerIDatTarget == robotAtTarget.getID()){
+                            // If there the same miner has occupied our target for >1 round: nullify our current target
+                            minerIDatTarget = -1;
+                            targetLoc = null;
+                            wander();
+                            searchForTarget();
+                            return;
+                        }
+                        else
+                            minerIDatTarget = robotAtTarget.getID();
+                    }
+                }
+                // In all other cases move towards our current target
+                PathFinding.moveToBug0(targetLoc);
+            }
+            else{
+                // We are only writing for the extreme case when our mine is depleted, in that case nullify
+                //      current target and search for a new one
+                if (self.senseLead(targetLoc) == 0){
                     targetLoc = null;
                     wander();
-                    searchForTarget();
-                } else {
-                    // go towards the current target
-                    PathFinding.moveToBug0(targetLoc);
-                    // If we found a better target along the way, go to it
                     searchForTarget();
                     return;
                 }
@@ -118,11 +125,6 @@ public strictfp class TypeMiner extends Globals {
         }
     }
 
-    // returns whether the robot has a target
-    public static boolean hasTarget() {
-        return targetLoc != null;
-    }
-
     static void searchForTarget() throws GameActionException {
         MapLocation[] candidates = self.getAllLocationsWithinRadiusSquared(self.getLocation(), visionRadiusSq);
         MapLocation bestLocation = null;
@@ -131,11 +133,14 @@ public strictfp class TypeMiner extends Globals {
         for (MapLocation loc : candidates) {
             int leadAtLoc = self.senseLead(loc);
             if (leadAtLoc > mostLead) {
-                // Heuristic: The periphery of our target shouldn't contain any bots
-                if (validTarget(loc)) {
-                    mostLead = leadAtLoc;
-                    bestLocation = loc;
+                // when we search for a target, there should not be our miner on it
+                if (self.canSenseRobotAtLocation(loc)){
+                    RobotInfo targetRobotInfo = self.senseRobotAtLocation(loc);
+                    if (targetRobotInfo.getType() == RobotType.MINER && targetRobotInfo.getTeam() == us)
+                        continue;
                 }
+                mostLead = leadAtLoc;
+                bestLocation = loc;
             }
         }
 
@@ -143,23 +148,6 @@ public strictfp class TypeMiner extends Globals {
             targetLoc = bestLocation;
             log("Droid " + self.getID() + " found lead amount " + mostLead + " @(" + targetLoc.x + "," + targetLoc.y + ")");
         }
-    }
-
-    static boolean validTarget(MapLocation loc) {
-        if (loc == null)
-            return false;
-        int neighborRobotsCount = 0;
-        MapLocation here = self.getLocation();
-        for (Direction dir : canTryMine) {
-            MapLocation targetNeighbor = here.add(dir);
-            if (self.canSenseRobotAtLocation(targetNeighbor)) {
-                // A target is an immediate no-no if there's another robot squatting on it
-                if (loc.equals(targetNeighbor))
-                    return false;
-                neighborRobotsCount++;
-            }
-        }
-        return neighborRobotsCount < 4;
     }
 
     static void wander() throws GameActionException {
