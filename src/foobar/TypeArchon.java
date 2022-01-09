@@ -3,6 +3,7 @@ package foobar;
 import battlecode.common.*;
 
 import java.util.Arrays;
+import java.util.Comparator;
 
 
 /**
@@ -30,10 +31,6 @@ public strictfp class TypeArchon extends Globals {
      * Number of builders built.
      */
     static int builderCount;
-    /**
-     * Offset into shared array.
-     */
-    static int sharedOffset;
 
 
     public static void init() throws GameActionException {
@@ -43,25 +40,8 @@ public strictfp class TypeArchon extends Globals {
         minerCount = 0;
         soldierCount = 0;
         builderCount = 0;
-        for (int i = 17; i < 21; i++)
+        for (int i = Messaging.DEAD_ARCHON_START; i < Messaging.DEAD_ARCHON_END; i++)
             self.writeSharedArray(i, Messaging.IMPOSSIBLE_LOCATION);
-        /*
-        int before = Clock.getBytecodesLeft();
-        MapLocation target = null;
-        MapLocation[] potentialMines = self.getAllLocationsWithinRadiusSquared(self.getLocation(), Integer.MAX_VALUE);
-        for (MapLocation potentialMine : potentialMines) {
-            if (!self.canSenseLocation(potentialMine))
-                continue;
-            if (self.senseLead(potentialMine) > 0) {
-                target = potentialMine;
-                System.out.println("found lead at " + potentialMine);
-                break;
-            }
-        }
-        System.out.println("Lead finding took " + (before - Clock.getBytecodesLeft()));
-        before = Clock.getBytecodesLeft();
-        PathFinding.findPathWithAStar(target);
-        System.out.println("Path finding took " + (before - Clock.getBytecodesLeft()));*/
     }
 
     public static void step() throws GameActionException {
@@ -149,7 +129,7 @@ public strictfp class TypeArchon extends Globals {
      */
     static void tryBuildTowardsLowRubble(RobotType type) throws GameActionException {
         Direction[] dirs = Arrays.copyOf(directions, directions.length);
-        Arrays.sort(dirs, (a, b) -> senseRubbleSafe(a) - senseRubbleSafe(b));
+        Arrays.sort(dirs, Comparator.comparingInt(TypeArchon::senseRubbleSafe));
         for (Direction dir : dirs) {
             if (self.canBuildRobot(type, dir)) {
                 self.buildRobot(type, dir);
