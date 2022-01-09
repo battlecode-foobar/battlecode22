@@ -48,6 +48,8 @@ public strictfp class RobotPlayer extends Globals {
                         TypeBuilder.step();
                         break;
                     case SAGE:
+                        // The mighty sword arm anchored by holy purpose – a zealous warrior.
+                        TypeSoldier.step();
                         break;
                 }
             } catch (GameActionException e) {

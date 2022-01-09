@@ -73,6 +73,8 @@ public strictfp class TypeArchon extends Globals {
         // This mostly the same as the lecture player.
         if (minerCount < 8) {
             tryBuildTowardsLowRubble(RobotType.MINER);
+        } else if (self.getTeamGoldAmount(us) >= 50) {
+            tryBuildTowardsLowRubble(RobotType.SAGE);
         } else if (soldierCount < 10) {
             tryBuildTowardsLowRubble(RobotType.SOLDIER);
         } else if (builderCount < 1) {
