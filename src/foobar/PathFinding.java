@@ -3,6 +3,7 @@ package foobar;
 import battlecode.common.Direction;
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
+import battlecode.common.RobotInfo;
 
 import java.util.*;
 
@@ -218,7 +219,7 @@ public class PathFinding extends Globals {
      * @param theta The angle relative to positive x-axis specifying an accurate direction.
      * @return An array of three directions closest to theta.
      */
-    static Direction[] getDiscreteDirection(double theta) {
+    static Direction[] getDiscreteDirection3(double theta) {
         // 0.785398 is pi / 4
         int index = (int) Math.round(theta / 0.785398) + 4;
         return new Direction[]{
@@ -227,6 +228,23 @@ public class PathFinding extends Globals {
                 directionsCycle[index + 3],
                 // directionsCycle[index],
                 // directionsCycle[index + 4],
+        };
+    }
+
+    /**
+     * Returns the five directions closest to the given angle.
+     *
+     * @param theta The angle relative to positive x-axis specifying an accurate direction.
+     * @return An array of five directions closest to theta.
+     */
+    static Direction[] getDiscreteDirection5(double theta) {
+        int index = (int) Math.round(theta / 0.785398) + 4;
+        return new Direction[]{
+                directionsCycle[index + 2],
+                directionsCycle[index + 1],
+                directionsCycle[index + 3],
+                directionsCycle[index],
+                directionsCycle[index + 4],
         };
     }
 
@@ -242,19 +260,16 @@ public class PathFinding extends Globals {
         double theta = Math.atan2(dest.y - here.y, dest.x - here.x);
         int minCost = Integer.MAX_VALUE;
         Direction minCostDir = null;
-        String x = "";
-        for (Direction dir : getDiscreteDirection(theta)) {
+        for (Direction dir : getDiscreteDirection3(theta)) {
             MapLocation there = here.add(dir);
             if (!self.canSenseLocation(there))
                 continue;
-            x += dir;
             int costThere = getCostAt(there);
             if (costThere < minCost) {
                 minCost = costThere;
                 minCostDir = dir;
             }
         }
-        self.setIndicatorString(minCostDir + " " + minCost);
         if (minCost == Integer.MAX_VALUE)
             return null;
         return minCostDir;
@@ -269,7 +284,7 @@ public class PathFinding extends Globals {
             around[i] = self.canSenseLocation(there) ? self.senseRubble(there) : Integer.MAX_VALUE;
         }
         Arrays.sort(around);
-        defaultObstacleThreshold = 26;
+        defaultObstacleThreshold = around[1] + 16;
     }
 
     /**
@@ -363,6 +378,25 @@ public class PathFinding extends Globals {
     public static void wanderAvoidingObstacle(int threshold) throws GameActionException {
         Direction dir = directions[rng.nextInt(directions.length)];
         if (self.canMove(dir) && notObstacle(dir, threshold))
+            self.move(dir);
+    }
+
+    public static void spreadOut() throws GameActionException {
+        updateObstacleThreshold();
+        MapLocation here = self.getLocation();
+        RobotInfo[] botsAround = self.senseNearbyRobots();
+        double x = 0, y = 0;
+        for (RobotInfo bot : botsAround) {
+            MapLocation loc = bot.getLocation();
+            double denom = Math.sqrt(loc.distanceSquaredTo(here));
+            denom *= loc.distanceSquaredTo(here);
+            x -= (loc.x - here.x) / denom;
+            y -= (loc.y - here.y) / denom;
+        }
+        double theta = Math.atan2(y, x);
+        Direction[] candidates = getDiscreteDirection3(theta);
+        Direction dir = candidates[rng.nextInt(candidates.length)];
+        if (self.canMove(dir) && notObstacle(dir, defaultObstacleThreshold))
             self.move(dir);
     }
 }

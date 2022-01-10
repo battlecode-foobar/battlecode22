@@ -18,34 +18,15 @@ public strictfp class TypeMiner extends Globals {
      * The cached action radius.
      */
     static int actionRadiusSq = 0;
-    /**
-     * If we are at our target.
-     */
-    static Boolean atTarget = false;
-    /**
-     * Record the miner ID at target (if there is any)
-     */
-    static int minerIDatTarget = -1;
 
-    static RobotInfo nullRobotInfo = new RobotInfo(-1, us, RobotType.MINER,
-            RobotMode.DROID, 0, 0, new MapLocation(-1, -1));
-
-    static RobotInfo[] previousRobotsNearTarget = new RobotInfo[9];
-    static int[] previousRobotsNearTargetStayTurnCount = new int[9];
-
-    static int turnCount = 0;
-
-    /**
-     * As name
-     */
-    static int defaultObstacleThreshold = 25;
-    /**
-     * All directions relative to our current position where we can try look for metals and try mine.
-     */
     /**
      * A miner will not mine lead beneath this threshold
      */
     static final int sustainableLeadThreshold = 1;
+
+    /**
+     * All directions relative to our current position where we can try look for metals and try mine.
+     */
     static Direction[] canTryMine = {
             Direction.CENTER,
             Direction.NORTH,
@@ -59,13 +40,6 @@ public strictfp class TypeMiner extends Globals {
     };
 
     public static void step() throws GameActionException {
-        if ((turnCount++) == 0) {
-            // Initialize our bot
-            for (int i = 0; i < 9; i++) {
-                previousRobotsNearTarget[i] = nullRobotInfo;
-                previousRobotsNearTargetStayTurnCount[i] = 0;
-            }
-        }
         if (firstRun()) {
             visionRadiusSq = self.getType().visionRadiusSquared;
             actionRadiusSq = self.getType().actionRadiusSquared;
@@ -82,7 +56,8 @@ public strictfp class TypeMiner extends Globals {
             Messaging.claimMine(targetLoc);
             PathFinding.moveToBug0(targetLoc);
         } else {
-            wander();
+            PathFinding.spreadOut();
+            // wander();
         }
     }
 
@@ -111,12 +86,10 @@ public strictfp class TypeMiner extends Globals {
             return false;
         for (Direction dir : directionsWithMe) {
             MapLocation neighborLoc = loc.add(dir);
-            // If there is a miner adjacent to our dear target
             if (self.canSenseRobotAtLocation(neighborLoc)) {
                 RobotInfo botAtLoc = self.senseRobotAtLocation(neighborLoc);
-                if (botAtLoc.getType() == RobotType.MINER && botAtLoc.getID() != self.getID()
-                        && botAtLoc.getTeam() == us)
-                    // If there is another miner adjacent to our dear target
+                if (botAtLoc.getType().equals(RobotType.MINER) && botAtLoc.getID() != self.getID()
+                        && botAtLoc.getTeam().equals(us))
                     return true;
             }
         }
@@ -134,8 +107,10 @@ public strictfp class TypeMiner extends Globals {
         if (!self.canSenseLocation(targetLoc))
             return true;
 
+        if (self.senseLead(targetLoc) == 0)
+            return false;
         if (!self.getLocation().equals(targetLoc)) {
-            if (self.senseLead(targetLoc) < 4)
+            if (self.senseLead(targetLoc) == 0)
                 return false;
             return !hasNeighborMiners(targetLoc);
         } else {
@@ -144,7 +119,7 @@ public strictfp class TypeMiner extends Globals {
             RobotInfo[] neighborBots = self.senseNearbyRobots(actionRadiusSq, us);
             int numMiners = 0;
             for (RobotInfo bot : neighborBots)
-                if (bot.getType() == RobotType.MINER && bot.getTeam() == us && bot.getID() != self.getID())
+                if (bot.getType().equals(RobotType.MINER) && bot.getTeam().equals(us))
                     numMiners++;
             // For each additional bot have 1/10 probability to move away
             return rng.nextInt(80) >= numMiners;
