@@ -41,7 +41,7 @@ public strictfp class TypeArchon extends Globals {
         minerCount = 0;
         soldierCount = 0;
         builderCount = 0;
-        for (int i = Messaging.DEAD_ARCHON_START; i < Messaging.ENEMY_ARCHON_END; i++)
+        for (int i = Messaging.DEAD_ARCHON_START; i < Messaging.MINER_END; i++)
             self.writeSharedArray(i, Messaging.IMPOSSIBLE_LOCATION);
     }
 
@@ -60,12 +60,10 @@ public strictfp class TypeArchon extends Globals {
                 int index = Messaging.FRONTIER_START + rng.nextInt(Messaging.FRONTIER_END - Messaging.FRONTIER_START);
                 self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
             }
-/*
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 6; i++) {
                 int index = Messaging.MINER_START + rng.nextInt(Messaging.MINER_END - Messaging.MINER_START);
                 self.writeSharedArray(index, self.readSharedArray(index) & Messaging.MINE_UNCLAIM_MASK);
             }
-*/
         }
 
         Messaging.reportAllEnemiesAround();
@@ -88,6 +86,8 @@ public strictfp class TypeArchon extends Globals {
                 maxSoldierCountArchon = i;
             }
         }
+
+        self.setIndicatorString("lead " + self.getTeamLeadAmount(us));
 
         if (self.getMode().equals(RobotMode.TURRET)) {
             // Build miners to start.
@@ -114,14 +114,14 @@ public strictfp class TypeArchon extends Globals {
                             .getClosestArchonTo(Messaging.MINER_START, Messaging.MINER_END, archonIndex) == archonIndex;
                 }
                 // But of course if we have surplus we don't mind building more miners.
-                bestForMeToBuildMiner |= self.getTeamLeadAmount(us) > 500;
+                bestForMeToBuildMiner |= self.getTeamLeadAmount(us) > 300;
 
                 boolean shouldBuildMiner = hasUnclaimedMine && bestForMeToBuildMiner;
                 // We should definitely build more miners, but later we should focus less on building miners.
                 shouldBuildMiner &= Messaging.getTotalMinerCount() <= STARTUP_MINER_THRESHOLD
-                        || rng.nextDouble() < 0.1;
+                        || rng.nextDouble() < 0.15;
 
-                if (shouldBuildMiner && !hasFrontiers) {
+                if (shouldBuildMiner) {
                     tryBuildTowardsLowRubble(RobotType.MINER);
                 } else {
                     boolean bestForMeToBuildSoldier;
@@ -138,7 +138,7 @@ public strictfp class TypeArchon extends Globals {
                                 .getClosestArchonTo(Messaging.FRONTIER_START, Messaging.FRONTIER_END, archonIndex) == archonIndex;
                     }
                     // But of course if we have surplus we don't mind building more miners.
-                    bestForMeToBuildSoldier |= self.getTeamLeadAmount(us) > 500;
+                    bestForMeToBuildSoldier |= self.getTeamLeadAmount(us) > 300;
 
                     if (bestForMeToBuildSoldier)
                         tryBuildTowardsLowRubble(RobotType.SOLDIER);
