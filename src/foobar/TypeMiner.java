@@ -2,6 +2,7 @@ package foobar;
 
 import battlecode.common.Direction;
 import battlecode.common.RobotInfo;
+import battlecode.common.RobotMode;
 import battlecode.common.RobotType;
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
@@ -86,14 +87,10 @@ public strictfp class TypeMiner extends Globals {
             targetLoc = null;
         }
 
-        // Always determine whether oneself is at target
-        if (atTarget && self.senseLead(self.getLocation()) == 0) // <= sustainableleadthreshold
-            // if we were previously at target then target suddenly disappeared
-            targetLoc = null;
-
         tryMineResources();
 
         if (targetLoc != null) {
+            // Nullify our target if
             if (!validTarget(targetLoc)) {
                     targetLoc = null;
                     wander();
@@ -112,14 +109,6 @@ public strictfp class TypeMiner extends Globals {
                 self.setIndicatorString("Moving to target " + targetLoc);
             }
             else{
-                // When our mine is depleted, in that case nullify current target and search for a new one
-                if (self.senseLead(targetLoc) == 0){
-                    targetLoc = null;
-                    wander();
-                    searchForTarget();
-                    return;
-                }
-
                 self.setIndicatorString("At target");
             }
         } else {
@@ -152,20 +141,45 @@ public strictfp class TypeMiner extends Globals {
     }
 
     static boolean validTarget(MapLocation loc) throws GameActionException{
-        for (Direction dir: directionsWithMe){
-            MapLocation neighborLoc = loc.add(dir);
-            // If there is a miner adjacent to our dear target
-            if (self.canSenseRobotAtLocation(neighborLoc)){
-                RobotInfo botAtLoc = self.senseRobotAtLocation(neighborLoc);
-                if (botAtLoc.getType() == RobotType.MINER && botAtLoc.getID() != self.getID()
-                        && botAtLoc.getTeam() == us){
-                    // If there is another miner adjacent to our dear target
-                    atTarget = (self.getLocation() == loc);
-                    if (atTarget && rng.nextInt(100) == 0)
-                        return false;
-                    else if (!atTarget && rng.nextInt(2) == 0)
+        // If not at target, then:
+            // 1: >5 lead amount (else someone's probably mining it sustainably
+            // 2: No robots near it (including on top of it)
+        // If at target, then:
+            // 1: Our mine is not depleted
+            // 2: If there are neighboring robots, nullify target with small probability
+        if (!self.canSenseLocation(loc))
+            return true;
+
+        if (!self.getLocation().equals(loc)) {
+            if (self.senseLead(loc) < 4)
+                return false;
+
+            for (Direction dir : directionsWithMe) {
+                MapLocation neighborLoc = loc.add(dir);
+                // If there is a miner adjacent to our dear target
+                if (self.canSenseRobotAtLocation(neighborLoc)) {
+                    RobotInfo botAtLoc = self.senseRobotAtLocation(neighborLoc);
+                    if (botAtLoc.getType() == RobotType.MINER && botAtLoc.getID() != self.getID()
+                            && botAtLoc.getTeam() == us)
+                        // If there is another miner adjacent to our dear target
                         return false;
                 }
+            }
+        } else{
+            if (self.senseLead(loc) == 0) {
+                self.setIndicatorString("Aborting current loc target due to no lead");
+                return false;
+            }
+            RobotInfo[] neighborBots = self.senseNearbyRobots(actionRadiusSq, us);
+            int numMiners = 0;
+            for (RobotInfo bot:neighborBots)
+                if (bot.getType() == RobotType.MINER && bot.getTeam() == us && bot.getID() != self.getID())
+                    numMiners++;
+            numMiners = 0;
+            // For each additional bot have 1/10 probability to move away
+            if (rng.nextInt(80) < numMiners) {
+                self.setIndicatorString("Aborting current loc target due neighboring miners");
+                return false;
             }
         }
         return true;
