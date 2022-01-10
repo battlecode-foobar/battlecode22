@@ -10,7 +10,9 @@ import java.util.*;
  * Very naive path finding.
  */
 public class PathFinding extends Globals {
-    public final static int DEFAULT_OBSTACLE_THRESHOLD = 42;
+    static int defaultObstacleThreshold = 42;
+
+
     /**
      * A path.
      */
@@ -251,6 +253,16 @@ public class PathFinding extends Globals {
 
     static Direction bugDirection = null;
 
+    static void updateObstacleThreshold() throws GameActionException {
+        int[] around = new int[directions.length];
+        for (int i = 0; i < directions.length; i++) {
+            MapLocation there = self.getLocation().add(directions[i]);
+            around[i] = self.canSenseLocation(there) ? self.senseRubble(there) : Integer.MAX_VALUE;
+        }
+        Arrays.sort(around);
+        defaultObstacleThreshold = around[4] + 20;
+    }
+
     /**
      * Returns if we have an obstacle in the given direction.
      *
@@ -300,7 +312,8 @@ public class PathFinding extends Globals {
      * @throws GameActionException Actually doesn't throw.
      */
     public static void moveToBug0(MapLocation dest) throws GameActionException {
-        moveToBug0(dest, DEFAULT_OBSTACLE_THRESHOLD);
+        updateObstacleThreshold();
+        moveToBug0(dest, defaultObstacleThreshold);
     }
 
     /**

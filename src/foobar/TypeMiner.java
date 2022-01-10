@@ -1,9 +1,10 @@
 package foobar;
 
-import battlecode.common.*;
-
-import java.awt.*;
-import java.util.Map;
+import battlecode.common.Direction;
+import battlecode.common.RobotInfo;
+import battlecode.common.RobotType;
+import battlecode.common.GameActionException;
+import battlecode.common.MapLocation;
 
 /**
  * Main controller logic for a Miner unit

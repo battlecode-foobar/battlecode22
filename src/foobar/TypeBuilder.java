@@ -53,10 +53,7 @@ public class TypeBuilder extends Globals {
         if (targetLoc != null) {
             PathFinding.moveToBug0(targetLoc);
         } else {
-            // Wander around.
-            Direction dir = directions[rng.nextInt(directions.length)];
-            if (self.canMove(dir))
-                self.move(dir);
+            PathFinding.wander();
         }
     }
 }

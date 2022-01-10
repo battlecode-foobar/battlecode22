@@ -3,6 +3,7 @@ package foobar;
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotInfo;
+import battlecode.common.RobotType;
 
 /**
  * Messaging-related utility functions.
@@ -52,6 +53,14 @@ public class Messaging extends Globals {
      * End index of the frontier region in the shared array.
      */
     public static final int FRONTIER_END = FRONTIER_START + 12;
+    /**
+     * Start index of the enemy archon region in the shared array.
+     */
+    public static final int ENEMY_ARCHON_START = FRONTIER_END;
+    /**
+     * End index of the enemy archon region in the shared array.
+     */
+    public static final int ENEMY_ARCHON_END = ENEMY_ARCHON_START + 4;
     /**
      * Start and end index of miner broadcast mine
      */
@@ -212,12 +221,15 @@ public class Messaging extends Globals {
             throws GameActionException {
         int encoded = encodeLocation(loc);
         for (int i = start; i < end; i++) {
-            if (self.readSharedArray(i) == IMPOSSIBLE_LOCATION) {
+            if (self.readSharedArray(i) == IMPOSSIBLE_LOCATION
+                    || readSharedLocation(i).distanceSquaredTo(loc) < proximity) {
                 self.writeSharedArray(i, encoded);
                 return;
             }
+/*
             if (readSharedLocation(i).distanceSquaredTo(loc) < proximity)
                 return;
+*/
         }
         int offset = rng.nextInt(end - start);
         self.writeSharedArray(start + offset, encoded);
@@ -248,8 +260,12 @@ public class Messaging extends Globals {
      * @throws GameActionException Actually doesn't throw.
      */
     public static void reportAllEnemiesAround() throws GameActionException {
-        for (RobotInfo candidate : self.senseNearbyRobots(self.getType().visionRadiusSquared, them))
-            Messaging.reportEnemyUnit(candidate.getLocation());
+        for (RobotInfo candidate : self.senseNearbyRobots(self.getType().visionRadiusSquared, them)) {
+            reportEnemyUnit(candidate.getLocation());
+            if (candidate.getType().equals(RobotType.ARCHON)) {
+                tryAddLocationInRange(ENEMY_ARCHON_START, ENEMY_ARCHON_END, candidate.getLocation(), 5);
+            }
+        }
     }
 
     /**
