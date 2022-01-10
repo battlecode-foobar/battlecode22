@@ -72,7 +72,7 @@ public class Messaging extends Globals {
     /**
      * End index of miner broadcast region in the shared array.
      */
-    public static final int MINER_END = MINER_START + 16;
+    public static final int MINER_END = MINER_START + 24;
     /**
      * Bit masking for claimed mine.
      */
@@ -84,7 +84,7 @@ public class Messaging extends Globals {
     /**
      * Mine reporting proximity threshold.
      */
-    public static final int MINE_PROXIMITY = 9;
+    public static final int MINE_PROXIMITY = 2;
 
 
     /**
@@ -322,8 +322,8 @@ public class Messaging extends Globals {
                 continue;
             MapLocation there = decodeLocation(raw);
             if (loc.distanceSquaredTo(there) < MINE_PROXIMITY) {
-                // self.writeSharedArray(i, raw | MINE_CLAIM_MASK);
-                self.writeSharedArray(i, IMPOSSIBLE_LOCATION);
+                self.writeSharedArray(i, raw | MINE_CLAIM_MASK);
+                // self.writeSharedArray(i, IMPOSSIBLE_LOCATION);
                 break;
             }
         }
@@ -345,9 +345,11 @@ public class Messaging extends Globals {
     }
 
     public static boolean hasCoordinateIn(int start, int end) throws GameActionException {
-        for (int i = start; i < end; i++)
-            if (self.readSharedArray(i) != IMPOSSIBLE_LOCATION)
+        for (int i = start; i < end; i++) {
+            int raw = self.readSharedArray(i);
+            if (raw != IMPOSSIBLE_LOCATION && (raw & MINE_CLAIM_MASK) == 0)
                 return true;
+        }
         return false;
     }
 
@@ -371,7 +373,7 @@ public class Messaging extends Globals {
         int minDisArchon = defaultValue;
         for (int i = start; i < end; i++) {
             int raw = self.readSharedArray(i);
-            if (raw == Messaging.IMPOSSIBLE_LOCATION)
+            if (raw == Messaging.IMPOSSIBLE_LOCATION || (raw & MINE_CLAIM_MASK) != 0)
                 continue;
             for (int j = 0; j < initialArchonCount; j++) {
                 if (!isArchonAvailable(j))

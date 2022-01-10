@@ -349,11 +349,13 @@ public class PathFinding extends Globals {
      */
     public static void moveToBug0(MapLocation dest) throws GameActionException {
         updateObstacleThreshold();
-        Direction dir = findDirectionTo(dest);
-        if (dir != null && self.canMove(dir)) {
-            self.move(dir);
-            addToHistory(self.getLocation());
-            return;
+        if (!dest.equals(self.getLocation())) {
+            Direction dir = findDirectionTo(dest);
+            if (dir != null && self.canMove(dir)) {
+                self.move(dir);
+                addToHistory(self.getLocation());
+                return;
+            }
         }
         moveToBug0(dest, defaultObstacleThreshold);
     }
@@ -394,7 +396,7 @@ public class PathFinding extends Globals {
             y -= (loc.y - here.y) / denom;
         }
         double theta = Math.atan2(y, x);
-        Direction[] candidates = getDiscreteDirection3(theta);
+        Direction[] candidates = getDiscreteDirection5(theta);
         Direction dir = candidates[rng.nextInt(candidates.length)];
         if (self.canMove(dir) && notObstacle(dir, defaultObstacleThreshold))
             self.move(dir);

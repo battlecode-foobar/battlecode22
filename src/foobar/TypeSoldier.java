@@ -28,7 +28,15 @@ public class TypeSoldier extends Globals {
             updateEnemyArchons();
             if (Messaging.getTotalSoldierCount() < RUSH_PATIENCE) {
                 self.setIndicatorString("assemble at " + assemblyTarget);
-                PathFinding.moveToBug0(assemblyTarget, 80);
+/*
+                int closest = Messaging.getClosestArchonTo(self.getLocation());
+                MapLocation target = Messaging.getArchonLocation(closest);
+                if (closest > 16)
+                    PathFinding.moveToBug0(target);
+                else
+                    PathFinding.spreadOut();
+*/
+                PathFinding.moveToBug0(assemblyTarget);
             } else {
                 rush();
             }
@@ -75,6 +83,8 @@ public class TypeSoldier extends Globals {
             else
                 PathFinding.wanderAvoidingObstacle(PathFinding.defaultObstacleThreshold);
         } else {
+            PathFinding.spreadOut();
+/*
             int minDis = Integer.MAX_VALUE;
             MapLocation minDisLoc = null;
             for (int i = 0; i < initialArchonCount; i++) {
@@ -89,6 +99,7 @@ public class TypeSoldier extends Globals {
             } else {
                 PathFinding.wanderAvoidingObstacle(PathFinding.defaultObstacleThreshold);
             }
+*/
         }
     }
 
