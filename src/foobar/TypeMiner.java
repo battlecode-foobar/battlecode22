@@ -140,6 +140,23 @@ public strictfp class TypeMiner extends Globals {
         }
     }
 
+    static boolean hasNeighborMiners(MapLocation loc) throws GameActionException{
+        if (!self.canSenseLocation(loc))
+            return false;
+        for (Direction dir : directionsWithMe) {
+            MapLocation neighborLoc = loc.add(dir);
+            // If there is a miner adjacent to our dear target
+            if (self.canSenseRobotAtLocation(neighborLoc)) {
+                RobotInfo botAtLoc = self.senseRobotAtLocation(neighborLoc);
+                if (botAtLoc.getType() == RobotType.MINER && botAtLoc.getID() != self.getID()
+                        && botAtLoc.getTeam() == us)
+                    // If there is another miner adjacent to our dear target
+                    return true;
+            }
+        }
+        return false;
+    }
+
     static boolean validTarget(MapLocation loc) throws GameActionException{
         // If not at target, then:
             // 1: >5 lead amount (else someone's probably mining it sustainably
@@ -154,17 +171,8 @@ public strictfp class TypeMiner extends Globals {
             if (self.senseLead(loc) < 4)
                 return false;
 
-            for (Direction dir : directionsWithMe) {
-                MapLocation neighborLoc = loc.add(dir);
-                // If there is a miner adjacent to our dear target
-                if (self.canSenseRobotAtLocation(neighborLoc)) {
-                    RobotInfo botAtLoc = self.senseRobotAtLocation(neighborLoc);
-                    if (botAtLoc.getType() == RobotType.MINER && botAtLoc.getID() != self.getID()
-                            && botAtLoc.getTeam() == us)
-                        // If there is another miner adjacent to our dear target
-                        return false;
-                }
-            }
+            if (hasNeighborMiners(loc))
+                return false;
         } else{
             if (self.senseLead(loc) == 0) {
                 self.setIndicatorString("Aborting current loc target due to no lead");
@@ -186,13 +194,21 @@ public strictfp class TypeMiner extends Globals {
     }
 
     static void wander() throws GameActionException {
-        // OPTIMIZE: a better direction distribution.
-        RobotInfo[] neighborBots = self.senseNearbyRobots(self.getLocation(), visionRadiusSq, us);
-
-        Direction dir = directions[rng.nextInt(directions.length)];
-        if (self.canMove(dir)) {
-            self.move(dir);
+        // do not wander to a place with miners nearby
+        int numValidDirections = 0;
+        Direction[] validDirections = new Direction[9];
+        for (Direction dir:directions){
+            MapLocation tentativeLoc = self.getLocation().add(dir);
+            if (self.canMove(dir) && !hasNeighborMiners(tentativeLoc))
+                validDirections[numValidDirections++] = dir;
         }
+        Direction moveDir;
+        if (numValidDirections == 0)
+            moveDir = directions[rng.nextInt(directions.length)];
+        else
+            moveDir = validDirections[rng.nextInt(numValidDirections)];
+        if (self.canMove(moveDir))
+            self.move(moveDir);
     }
 
     static void tryMineResources() throws GameActionException {
