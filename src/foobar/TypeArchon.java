@@ -90,8 +90,7 @@ public strictfp class TypeArchon extends Globals {
         }
 
         if (self.getMode().equals(RobotMode.TURRET)) {
-            // self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
-            // This mostly the same as the lecture player.
+            // Build miners to start.
             if (turnCount <= 4 && minerCount < 2) {
                 tryBuildTowardsLowRubble(RobotType.MINER);
 /*
@@ -110,32 +109,39 @@ public strictfp class TypeArchon extends Globals {
 
                 boolean bestForMeToBuildMiner = true;
                 if (hasUnclaimedMine) {
+                    // If we have unclaimed mines, build miners to claim it only when we are closest to the mines.
                     bestForMeToBuildMiner = Messaging
                             .getClosestArchonTo(Messaging.MINER_START, Messaging.MINER_END, archonIndex) == archonIndex;
                 }
+                // But of course if we have surplus we don't mind building more miners.
+                bestForMeToBuildMiner |= self.getTeamLeadAmount(us) > 500;
 
-                boolean shouldBuildMiner = hasUnclaimedMine && bestForMeToBuildMiner && Messaging.getTotalMinerCount() <= STARTUP_MINER_THRESHOLD;
-                if ((shouldBuildMiner && !hasFrontiers)
-                        || ((Messaging.getTotalMinerCount() - STARTUP_MINER_THRESHOLD) * 4 < Messaging.getTotalSoldierCount())) {
+                boolean shouldBuildMiner = hasUnclaimedMine && bestForMeToBuildMiner;
+                // We should definitely build more miners, but later we should focus less on building miners.
+                shouldBuildMiner &= Messaging.getTotalMinerCount() <= STARTUP_MINER_THRESHOLD
+                        || rng.nextDouble() < 0.1;
+
+                if (shouldBuildMiner && !hasFrontiers) {
                     tryBuildTowardsLowRubble(RobotType.MINER);
                 } else {
                     boolean bestForMeToBuildSoldier;
                     if ((!hasFrontiers || rng.nextDouble() < 0.5) && turnCount > initialArchonCount) {
+                        // If we have no frontiers, or with one half chance, we can try follow the schedule of a rush
+                        // and build soldiers at the closest archon.
                         int idx = 0;
                         while (idx < initialArchonCount - 1 && Messaging.isEnemyArchonDead(TypeSoldier.enemyArchons[idx]))
                             idx++;
                         bestForMeToBuildSoldier = Messaging.getClosestArchonTo(TypeSoldier.enemyArchons[idx]) == archonIndex;
                     } else {
+                        // Otherwise, we build soldiers at the archon closest to the frontier.
                         bestForMeToBuildSoldier = Messaging
                                 .getClosestArchonTo(Messaging.FRONTIER_START, Messaging.FRONTIER_END, archonIndex) == archonIndex;
                     }
-                    bestForMeToBuildSoldier |= self.getTeamLeadAmount(us) > initialArchonCount * 75 / 2;
+                    // But of course if we have surplus we don't mind building more miners.
+                    bestForMeToBuildSoldier |= self.getTeamLeadAmount(us) > 500;
 
-                    if (!shouldBuildMiner) {
-                        // if (soldierCount <= minSoldierCount + 100)
-                        if (bestForMeToBuildSoldier)
-                            tryBuildTowardsLowRubble(RobotType.SOLDIER);
-                    }
+                    if (bestForMeToBuildSoldier)
+                        tryBuildTowardsLowRubble(RobotType.SOLDIER);
                 }
             }
             if (turnCount > initialArchonCount)

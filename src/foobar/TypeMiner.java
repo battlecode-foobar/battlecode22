@@ -66,50 +66,24 @@ public strictfp class TypeMiner extends Globals {
                 previousRobotsNearTargetStayTurnCount[i] = 0;
             }
         }
-
-        /*  How the miner works
-         *  Mining: try to mine gold, then lead, around itself; this always happens
-         *  Movement:
-         *      If it has a target (a lead mine without another miner on top) then go for it using bug0
-         *      Without a target, a miner wanders
-         */
-
-        // Initialization: Scan for target and update radius
         if (firstRun()) {
-            searchForTarget();
             visionRadiusSq = self.getType().visionRadiusSquared;
             actionRadiusSq = self.getType().actionRadiusSquared;
-            targetLoc = null;
-        }
-
-        Messaging.reportAllMinesAround();
-
-        tryMineResources();
-
-        if (targetLoc != null) {
-            // Nullify our target if
-            if (!validTarget(targetLoc)) {
-                targetLoc = null;
-                searchForTarget();
-                if (targetLoc == null)
-                    wander();
-                return;
-            }
-
-            // In the case that we have a target but have not reached it
-            if (!self.getLocation().equals(targetLoc)) {
-                PathFinding.moveToBug0(targetLoc);
-                self.setIndicatorString("Moving to target " + targetLoc);
-            } else {
-                self.setIndicatorString("At target");
-            }
-        } else {
-            searchForTarget();
-            if (targetLoc == null)
-                wander();
         }
 
         Messaging.reportAllEnemiesAround();
+        Messaging.reportAllMinesAround();
+        tryMineResources();
+
+        if (targetLoc == null || !isTargetStillValid())
+            searchForTarget();
+
+        if (targetLoc != null) {
+            Messaging.claimMine(targetLoc);
+            PathFinding.moveToBug0(targetLoc);
+        } else {
+            wander();
+        }
     }
 
     static void searchForTarget() throws GameActionException {
@@ -130,11 +104,9 @@ public strictfp class TypeMiner extends Globals {
             }
         }
         targetLoc = minDisLoc;
-        if (targetLoc != null)
-            Messaging.claimMine(targetLoc);
     }
 
-    static boolean hasNeighborMiners(MapLocation loc) throws GameActionException{
+    static boolean hasNeighborMiners(MapLocation loc) throws GameActionException {
         if (!self.canSenseLocation(loc))
             return false;
         for (Direction dir : directionsWithMe) {
@@ -151,7 +123,7 @@ public strictfp class TypeMiner extends Globals {
         return false;
     }
 
-    static boolean validTarget(MapLocation loc) throws GameActionException {
+    static boolean isTargetStillValid() throws GameActionException {
         // If not at target, then:
         // 1: >5 lead amount (else someone's probably mining it sustainably
         // 2: No robots near it (including on top of it)
@@ -159,38 +131,30 @@ public strictfp class TypeMiner extends Globals {
         // 1: Our mine is not depleted
         // 2: If there are neighboring robots, nullify target with small probability
 
-        if (!self.canSenseLocation(loc))
+        if (!self.canSenseLocation(targetLoc))
             return true;
 
-        if (!self.getLocation().equals(loc)) {
-            if (self.senseLead(loc) < 4)
+        if (!self.getLocation().equals(targetLoc)) {
+            if (self.senseLead(targetLoc) < 4)
                 return false;
-            return !hasNeighborMiners(loc);
+            return !hasNeighborMiners(targetLoc);
         } else {
-            if (self.senseLead(loc) == 0) {
-                self.setIndicatorString("Aborting current loc target due to no lead");
+            if (self.senseLead(targetLoc) == 0)
                 return false;
-            }
             RobotInfo[] neighborBots = self.senseNearbyRobots(actionRadiusSq, us);
             int numMiners = 0;
             for (RobotInfo bot : neighborBots)
                 if (bot.getType() == RobotType.MINER && bot.getTeam() == us && bot.getID() != self.getID())
                     numMiners++;
-            numMiners = 0;
             // For each additional bot have 1/10 probability to move away
-            if (rng.nextInt(80) < numMiners) {
-                self.setIndicatorString("Aborting current loc target due neighboring miners");
-                return false;
-            }
+            return rng.nextInt(80) >= numMiners;
         }
-        return true;
     }
 
     static void wander() throws GameActionException {
-        // do not wander to a place with miners nearby
         int numValidDirections = 0;
         Direction[] validDirections = new Direction[9];
-        for (Direction dir:directions){
+        for (Direction dir : directions) {
             MapLocation tentativeLoc = self.getLocation().add(dir);
             if (self.canMove(dir) && !hasNeighborMiners(tentativeLoc))
                 validDirections[numValidDirections++] = dir;
