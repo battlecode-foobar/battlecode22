@@ -1,10 +1,9 @@
 package foobar;
 
-import battlecode.common.Direction;
-import battlecode.common.RobotInfo;
-import battlecode.common.RobotType;
-import battlecode.common.GameActionException;
-import battlecode.common.MapLocation;
+import battlecode.common.*;
+
+import java.awt.*;
+import java.util.Map;
 
 /**
  * Main controller logic for a Miner unit
@@ -30,6 +29,15 @@ public strictfp class TypeMiner extends Globals {
      * Record the miner ID at target (if there is any)
      */
     static int minerIDatTarget = -1;
+
+    static RobotInfo nullRobotInfo = new RobotInfo(-1, us, RobotType.MINER,
+            RobotMode.DROID, 0, 0, new MapLocation(-1, -1));
+
+    static RobotInfo[] previousRobotsNearTarget = new RobotInfo[9];
+    static int[] previousRobotsNearTargetStayTurnCount = new int[9];
+
+    static int turnCount = 0;
+
     /**
      * As name
      */
@@ -54,6 +62,13 @@ public strictfp class TypeMiner extends Globals {
     };
 
     public static void step() throws GameActionException {
+        if ((turnCount++) == 0){
+            // Initialize our bot
+            for (int i=0; i<9; i++){
+                previousRobotsNearTarget[i] = nullRobotInfo;
+                previousRobotsNearTargetStayTurnCount[i] = 0;
+            }
+        }
 
         /** How the miner works
          *  Mining: try to mine gold, then lead, around itself; this always happens
@@ -78,26 +93,17 @@ public strictfp class TypeMiner extends Globals {
         tryMineResources();
 
         if (targetLoc != null) {
-            // In the case that we have a target
+            if (!validTarget(targetLoc)) {
+                    targetLoc = null;
+                    wander();
+                    searchForTarget();
+                    return;
+                }
+
+            // In the case that we have a target but have not reached it
             if (!self.getLocation().equals(targetLoc)) {
                 // We have a target and we have not reached it
-                // First, if we can sense the target verify it is still a good target
-                if (self.canSenseRobotAtLocation(targetLoc)) {
-                    RobotInfo robotAtTarget = self.senseRobotAtLocation(targetLoc);
-                    if (robotAtTarget.getType() == RobotType.MINER && robotAtTarget.getTeam() == us) {
-                        // If there the same miner has occupied our target for >1 round: nullify our current target
-                        if (minerIDatTarget == robotAtTarget.getID()){
-                            minerIDatTarget = -1;
-                            targetLoc = null;
-                            wander();
-                            // Another miner, its dream battered and broken, in search of a new life
-                            searchForTarget();
-                            return;
-                        }
-                        else
-                            minerIDatTarget = robotAtTarget.getID();
-                    }
-                }
+
                 // In all other cases move towards our current target
                 if (self.canSenseLocation(targetLoc) && self.senseRubble(targetLoc) > defaultObstacleThreshold)
                     PathFinding.moveToBug0(targetLoc, self.senseRubble(targetLoc));
@@ -113,7 +119,7 @@ public strictfp class TypeMiner extends Globals {
                     return;
                 }
 
-                log("At target");
+                self.setIndicatorString("At target");
             }
         } else {
             // If we don't even have a target, then wander around
@@ -122,22 +128,17 @@ public strictfp class TypeMiner extends Globals {
             searchForTarget();
             self.setIndicatorString("Wandering");
         }
+
+        Messaging.reportAllEnemiesAround();
     }
 
     static void searchForTarget() throws GameActionException {
-        MapLocation[] candidates = self.getAllLocationsWithinRadiusSquared(self.getLocation(), visionRadiusSq);
+        MapLocation[] candidates = self.senseNearbyLocationsWithLead(visionRadiusSq);
         MapLocation bestLocation = null;
         int mostLead = 0;
-
-        for (MapLocation loc : candidates) {
+        for (MapLocation loc : candidates){
             int leadAtLoc = self.senseLead(loc);
-            if (leadAtLoc > mostLead) {
-                // when we search for a target, there should not be our miner on it
-                if (self.canSenseRobotAtLocation(loc)){
-                    RobotInfo targetRobotInfo = self.senseRobotAtLocation(loc);
-                    if (targetRobotInfo.getType() == RobotType.MINER && targetRobotInfo.getTeam() == us)
-                        continue;
-                }
+            if (leadAtLoc > mostLead && validTarget(loc)) {
                 mostLead = leadAtLoc;
                 bestLocation = loc;
             }
@@ -147,8 +148,26 @@ public strictfp class TypeMiner extends Globals {
             targetLoc = bestLocation;
             log("Droid " + self.getID() + " found lead amount " + mostLead + " @(" + targetLoc.x + "," + targetLoc.y + ")");
         }
+    }
 
-        Messaging.reportAllEnemiesAround();
+    static boolean validTarget(MapLocation loc) throws GameActionException{
+        for (Direction dir: directionsWithMe){
+            MapLocation neighborLoc = loc.add(dir);
+            // If there is a miner adjacent to our dear target
+            if (self.canSenseRobotAtLocation(neighborLoc)){
+                RobotInfo botAtLoc = self.senseRobotAtLocation(neighborLoc);
+                if (botAtLoc.getType() == RobotType.MINER && botAtLoc.getID() != self.getID()
+                        && botAtLoc.getTeam() == us){
+                    // If there is another miner adjacent to our dear target
+                    atTarget = (self.getLocation() == loc);
+                    if (atTarget && rng.nextInt(100) == 0)
+                        return false;
+                    else if (!atTarget && rng.nextInt(2) == 0)
+                        return false;
+                }
+            }
+        }
+        return true;
     }
 
     static void wander() throws GameActionException {
