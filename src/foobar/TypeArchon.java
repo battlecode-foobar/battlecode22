@@ -120,6 +120,7 @@ public strictfp class TypeArchon extends Globals {
                 // We should definitely build more miners, but later we should focus less on building miners.
                 shouldBuildMiner &= Messaging.getTotalMinerCount() <= STARTUP_MINER_THRESHOLD
                         || rng.nextDouble() < 0.15;
+                shouldBuildMiner &= self.senseNearbyRobots(100, them).length == 0;
 
                 if (shouldBuildMiner) {
                     tryBuildTowardsLowRubble(RobotType.MINER);
