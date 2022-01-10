@@ -220,8 +220,8 @@ public class PathFinding extends Globals {
         // 0.785398 is pi / 4
         int index = (int) Math.round(theta / 0.785398) + 4;
         return new Direction[]{
-                directionsCycle[index],
                 directionsCycle[index + 1],
+                directionsCycle[index],
                 directionsCycle[index + 2]
         };
     }
@@ -248,6 +248,8 @@ public class PathFinding extends Globals {
                 minCostDir = dir;
             }
         }
+        if (minCost == Integer.MAX_VALUE)
+            return null;
         return minCostDir;
     }
 
@@ -260,7 +262,7 @@ public class PathFinding extends Globals {
             around[i] = self.canSenseLocation(there) ? self.senseRubble(there) : Integer.MAX_VALUE;
         }
         Arrays.sort(around);
-        defaultObstacleThreshold = around[4] + 20;
+        defaultObstacleThreshold = Math.max(30, around[1] + 17);
     }
 
     /**
@@ -313,6 +315,11 @@ public class PathFinding extends Globals {
      */
     public static void moveToBug0(MapLocation dest) throws GameActionException {
         updateObstacleThreshold();
+        Direction dir = findDirectionTo(dest);
+        if (dir != null && self.canMove(dir)) {
+            self.move(dir);
+            return;
+        }
         moveToBug0(dest, defaultObstacleThreshold);
     }
 

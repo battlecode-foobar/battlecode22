@@ -59,15 +59,15 @@ public strictfp class TypeMiner extends Globals {
     };
 
     public static void step() throws GameActionException {
-        if ((turnCount++) == 0){
+        if ((turnCount++) == 0) {
             // Initialize our bot
-            for (int i=0; i<9; i++){
+            for (int i = 0; i < 9; i++) {
                 previousRobotsNearTarget[i] = nullRobotInfo;
                 previousRobotsNearTargetStayTurnCount[i] = 0;
             }
         }
 
-        /** How the miner works
+        /*  How the miner works
          *  Mining: try to mine gold, then lead, around itself; this always happens
          *  Movement:
          *      If it has a target (a lead mine without another miner on top) then go for it using bug0
@@ -82,57 +82,56 @@ public strictfp class TypeMiner extends Globals {
             targetLoc = null;
         }
 
+        Messaging.reportAllMinesAround();
+
         tryMineResources();
 
         if (targetLoc != null) {
             // Nullify our target if
             if (!validTarget(targetLoc)) {
-                    targetLoc = null;
+                targetLoc = null;
+                searchForTarget();
+                if (targetLoc == null)
                     wander();
-                    searchForTarget();
-                    return;
-                }
+                return;
+            }
 
             // In the case that we have a target but have not reached it
             if (!self.getLocation().equals(targetLoc)) {
-                // We have a target and we have not reached it
-
-                // In all other cases move towards our current target
-                if (self.canSenseLocation(targetLoc) && self.senseRubble(targetLoc) > defaultObstacleThreshold)
-                    PathFinding.moveToBug0(targetLoc, self.senseRubble(targetLoc));
                 PathFinding.moveToBug0(targetLoc);
                 self.setIndicatorString("Moving to target " + targetLoc);
-            }
-            else{
+            } else {
                 self.setIndicatorString("At target");
             }
         } else {
-            // If we don't even have a target, then wander around
-            // TODO: Check the broadcasted queue and go for one
-            wander();
             searchForTarget();
-            self.setIndicatorString("Wandering");
+            if (targetLoc == null)
+                wander();
         }
 
         Messaging.reportAllEnemiesAround();
     }
 
     static void searchForTarget() throws GameActionException {
-        MapLocation[] candidates = self.senseNearbyLocationsWithLead(visionRadiusSq);
-        MapLocation bestLocation = null;
-        int mostLead = 0;
-        for (MapLocation loc : candidates){
-            int leadAtLoc = self.senseLead(loc);
-            if (leadAtLoc > mostLead && validTarget(loc)) {
-                mostLead = leadAtLoc;
-                bestLocation = loc;
+        int minDis = Integer.MAX_VALUE;
+        MapLocation minDisLoc = null;
+        for (int i = Messaging.MINER_START; i < Messaging.MINER_END; i++) {
+            int raw = self.readSharedArray(i);
+/*
+            if (raw == Messaging.IMPOSSIBLE_LOCATION || (raw & Messaging.MINE_CLAIM_MASK) != 0)
+                continue;
+*/
+            if (raw == Messaging.IMPOSSIBLE_LOCATION || (raw & Messaging.MINE_CLAIM_MASK) != 0)
+                continue;
+            MapLocation there = Messaging.decodeLocation(raw);
+            if (self.getLocation().distanceSquaredTo(there) < minDis) {
+                minDis = self.getLocation().distanceSquaredTo(there);
+                minDisLoc = there;
             }
         }
-
-        if (mostLead > 0) {
-            targetLoc = bestLocation;
-            log("Droid " + self.getID() + " found lead amount " + mostLead + " @(" + targetLoc.x + "," + targetLoc.y + ")");
-        }
+        targetLoc = minDisLoc;
+        if (targetLoc != null)
+            Messaging.claimMine(targetLoc);
     }
 
     static boolean hasNeighborMiners(MapLocation loc) throws GameActionException{
@@ -152,30 +151,29 @@ public strictfp class TypeMiner extends Globals {
         return false;
     }
 
-    static boolean validTarget(MapLocation loc) throws GameActionException{
+    static boolean validTarget(MapLocation loc) throws GameActionException {
         // If not at target, then:
-            // 1: >5 lead amount (else someone's probably mining it sustainably
-            // 2: No robots near it (including on top of it)
+        // 1: >5 lead amount (else someone's probably mining it sustainably
+        // 2: No robots near it (including on top of it)
         // If at target, then:
-            // 1: Our mine is not depleted
-            // 2: If there are neighboring robots, nullify target with small probability
+        // 1: Our mine is not depleted
+        // 2: If there are neighboring robots, nullify target with small probability
+
         if (!self.canSenseLocation(loc))
             return true;
 
         if (!self.getLocation().equals(loc)) {
             if (self.senseLead(loc) < 4)
                 return false;
-
-            if (hasNeighborMiners(loc))
-                return false;
-        } else{
+            return !hasNeighborMiners(loc);
+        } else {
             if (self.senseLead(loc) == 0) {
                 self.setIndicatorString("Aborting current loc target due to no lead");
                 return false;
             }
             RobotInfo[] neighborBots = self.senseNearbyRobots(actionRadiusSq, us);
             int numMiners = 0;
-            for (RobotInfo bot:neighborBots)
+            for (RobotInfo bot : neighborBots)
                 if (bot.getType() == RobotType.MINER && bot.getTeam() == us && bot.getID() != self.getID())
                     numMiners++;
             numMiners = 0;
@@ -214,8 +212,10 @@ public strictfp class TypeMiner extends Globals {
             // You can mine multiple times per turn!
             while (self.canMineGold(mineLocation))
                 self.mineGold(mineLocation);
-            while (self.canMineLead(mineLocation) && self.senseLead(mineLocation) > sustainableLeadThreshold)
+            while (self.canMineLead(mineLocation) && self.senseLead(mineLocation) > sustainableLeadThreshold) {
+                Messaging.claimMine(mineLocation);
                 self.mineLead(mineLocation);
+            }
         }
     }
 }

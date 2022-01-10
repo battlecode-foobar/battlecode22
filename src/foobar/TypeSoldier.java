@@ -3,25 +3,25 @@ package foobar;
 import battlecode.common.*;
 
 public class TypeSoldier extends Globals {
-    static final int RUSH_PATIENCE = 50;
+    static final int RUSH_PATIENCE = 30;
 
     static MapLocation assemblyTarget;
-    static MapLocation[] enemyArchons;
+    public static MapLocation[] enemyArchons;
     static boolean rusher;
     static boolean chasingEnemy;
 
     public static void step() throws GameActionException {
         if (firstRun()) {
             // RUSH_PATIENCE = us.equals(Team.A) ? 400 : 500;
-            rusher = Messaging.getTotalSoldierCount() < RUSH_PATIENCE;
+            rusher = Messaging.getTotalSoldierCount() < 100;
             chasingEnemy = false;
             calculateEnemyArchons();
         }
 
         Messaging.reportAllEnemiesAround();
+        Messaging.reportAllMinesAround();
 
         findEnemyAndAttack();
-
         if (!rusher) {
             supportFrontier();
         } else {
@@ -92,7 +92,7 @@ public class TypeSoldier extends Globals {
         }
     }
 
-    static void calculateEnemyArchons() throws GameActionException {
+    public static void calculateEnemyArchons() throws GameActionException {
         boolean partialSymmetry = false;
         MapLocation[] ourArchons = new MapLocation[initialArchonCount];
         for (int i = 0; i < initialArchonCount; i++)
@@ -154,7 +154,7 @@ public class TypeSoldier extends Globals {
     static void rush() throws GameActionException {
         // int theUnluckyGuy = (Messaging.getGlobalTurnCount() - RUSH_PATIENCE) * initialArchonCount / (2000 - RUSH_PATIENCE);
         int idx = 0;
-        while (idx < initialArchonCount - 1 && Messaging.isArchonDead(enemyArchons[idx]))
+        while (idx < initialArchonCount - 1 && Messaging.isEnemyArchonDead(enemyArchons[idx]))
             idx++;
 
         MapLocation theEnemy = enemyArchons[idx];

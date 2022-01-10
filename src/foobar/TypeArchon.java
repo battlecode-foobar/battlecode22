@@ -47,23 +47,28 @@ public strictfp class TypeArchon extends Globals {
     public static void step() throws GameActionException {
         if (firstRun())
             init();
+        if (turnCount > 4)
+            TypeSoldier.calculateEnemyArchons();
 
         if (inNegotiation)
             negotiate();
         self.writeSharedArray(0, turnCount);
 
         if (rng.nextDouble() <= 1.0 / self.getArchonCount()) {
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 4; i++) {
                 int index = Messaging.FRONTIER_START + rng.nextInt(Messaging.FRONTIER_END - Messaging.FRONTIER_START);
                 self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
             }
 /*
-            int index = Messaging.ENEMY_ARCHON_START + rng.nextInt(Messaging.ENEMY_ARCHON_END - Messaging.ENEMY_ARCHON_START);
-            self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
+            for (int i = 0; i < 4; i++) {
+                int index = Messaging.MINER_START + rng.nextInt(Messaging.MINER_END - Messaging.MINER_START);
+                self.writeSharedArray(index, self.readSharedArray(index) & Messaging.MINE_UNCLAIM_MASK);
+            }
 */
         }
 
         Messaging.reportAllEnemiesAround();
+        Messaging.reportAllMinesAround();
 
         int minSoldierCount = Integer.MAX_VALUE;
         int minMinerCount = Integer.MAX_VALUE;
@@ -86,28 +91,63 @@ public strictfp class TypeArchon extends Globals {
         if (self.getMode().equals(RobotMode.TURRET)) {
             // self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
             // This mostly the same as the lecture player.
-            if (minerCount < 8 && minerCount == minMinerCount) {
+            if (turnCount <= 4 && minerCount < 2) {
                 tryBuildTowardsLowRubble(RobotType.MINER);
-            } else if (soldierCount < 10) {
+/*
+            } else if (soldierCount < 5) {
                 tryBuildTowardsLowRubble(RobotType.SOLDIER);
-            } else if (builderCount < 1) {
+            } else if (builderCount < 0) {
                 tryBuildTowardsLowRubble(RobotType.BUILDER);
             } else if (minerCount < soldierCount * 5 / 10 && self.getTeamLeadAmount(us) < 5000) {
                 tryBuildTowardsLowRubble(RobotType.MINER);
             } else if (builderCount < soldierCount / 30) {
                 tryBuildTowardsLowRubble(RobotType.BUILDER);
+*/
             } else {
-                self.setIndicatorString("min soldier count: " + minSoldierCount + " my soldier: " + soldierCount);
-                if (soldierCount <= minSoldierCount + 100)
-                    tryBuildTowardsLowRubble(RobotType.SOLDIER);
-            }
+                boolean hasAnotherUnclaimedMine = Messaging.hasCoordinateIn(Messaging.MINER_START, Messaging.MINER_END);
+                boolean hasFrontiers = Messaging.hasCoordinateIn(Messaging.FRONTIER_START, Messaging.FRONTIER_END);
 
+                boolean bestForMeToBuildMiner = true;
+                if (hasAnotherUnclaimedMine) {
+                    bestForMeToBuildMiner = Messaging
+                            .getClosestArchonTo(Messaging.MINER_START, Messaging.MINER_END, archonIndex) == archonIndex;
+                }
+
+                boolean shouldBuildMiner = hasAnotherUnclaimedMine && bestForMeToBuildMiner && Messaging.getTotalMinerCount() <= 17;
+                if (shouldBuildMiner && !hasFrontiers) {
+                    System.out.println("try building miner");
+                    tryBuildTowardsLowRubble(RobotType.MINER);
+                } else {
+                    boolean bestForMeToBuildSoldier;
+                    if (!hasFrontiers || rng.nextDouble() < 0.5) {
+                        int idx = 0;
+                        while (idx < initialArchonCount - 1 && Messaging.isEnemyArchonDead(TypeSoldier.enemyArchons[idx]))
+                            idx++;
+                        self.setIndicatorString("my target is " + TypeSoldier.enemyArchons[idx] + " " + Messaging.isArchonAvailable(archonIndex));
+                        bestForMeToBuildSoldier = Messaging.getClosestArchonTo(TypeSoldier.enemyArchons[idx]) == archonIndex;
+                    } else {
+                        bestForMeToBuildSoldier = Messaging
+                                .getClosestArchonTo(Messaging.FRONTIER_START, Messaging.FRONTIER_END, archonIndex) == archonIndex;
+                    }
+
+                    if (!shouldBuildMiner) {
+                        // if (soldierCount <= minSoldierCount + 100)
+                        if (bestForMeToBuildSoldier)
+                            tryBuildTowardsLowRubble(RobotType.SOLDIER);
+                    }
+                }
+            }
+            if (turnCount > initialArchonCount)
+                self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.AVAILABILITY, turnCount);
+
+/*
             if (self.senseNearbyRobots(self.getLocation(), self.getType().visionRadiusSquared, them).length > 0) {
                 MapLocation target = Messaging.getArchonLocation(maxSoldierCountArchon);
                 int distanceToTarget = self.getLocation().distanceSquaredTo(target);
                 if (distanceToTarget > 10 && self.canTransform())
                     self.transform();
             }
+*/
         } else if (self.getMode().equals(RobotMode.PORTABLE)) {
             // System.out.println("Max soldiers: " + maxSoldierCount + " archon: " + maxSoldierCountArchon);
             MapLocation target = Messaging.getArchonLocation(maxSoldierCountArchon);
