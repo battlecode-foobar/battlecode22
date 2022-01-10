@@ -10,6 +10,7 @@ import java.util.Comparator;
  * Main controller logic for an Archon unit.
  */
 public strictfp class TypeArchon extends Globals {
+    static final int STARTUP_MINER_THRESHOLD = 15;
     /**
      * If we are in negotiation right now.
      */
@@ -47,7 +48,7 @@ public strictfp class TypeArchon extends Globals {
     public static void step() throws GameActionException {
         if (firstRun())
             init();
-        if (turnCount > 4)
+        if (turnCount > initialArchonCount)
             TypeSoldier.calculateEnemyArchons();
 
         if (inNegotiation)
@@ -55,7 +56,7 @@ public strictfp class TypeArchon extends Globals {
         self.writeSharedArray(0, turnCount);
 
         if (rng.nextDouble() <= 1.0 / self.getArchonCount()) {
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 2; i++) {
                 int index = Messaging.FRONTIER_START + rng.nextInt(Messaging.FRONTIER_END - Messaging.FRONTIER_START);
                 self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
             }
@@ -104,31 +105,31 @@ public strictfp class TypeArchon extends Globals {
                 tryBuildTowardsLowRubble(RobotType.BUILDER);
 */
             } else {
-                boolean hasAnotherUnclaimedMine = Messaging.hasCoordinateIn(Messaging.MINER_START, Messaging.MINER_END);
+                boolean hasUnclaimedMine = Messaging.hasCoordinateIn(Messaging.MINER_START, Messaging.MINER_END);
                 boolean hasFrontiers = Messaging.hasCoordinateIn(Messaging.FRONTIER_START, Messaging.FRONTIER_END);
 
                 boolean bestForMeToBuildMiner = true;
-                if (hasAnotherUnclaimedMine) {
+                if (hasUnclaimedMine) {
                     bestForMeToBuildMiner = Messaging
                             .getClosestArchonTo(Messaging.MINER_START, Messaging.MINER_END, archonIndex) == archonIndex;
                 }
 
-                boolean shouldBuildMiner = hasAnotherUnclaimedMine && bestForMeToBuildMiner && Messaging.getTotalMinerCount() <= 17;
-                if (shouldBuildMiner && !hasFrontiers) {
-                    System.out.println("try building miner");
+                boolean shouldBuildMiner = hasUnclaimedMine && bestForMeToBuildMiner && Messaging.getTotalMinerCount() <= STARTUP_MINER_THRESHOLD;
+                if ((shouldBuildMiner && !hasFrontiers)
+                        || ((Messaging.getTotalMinerCount() - STARTUP_MINER_THRESHOLD) * 4 < Messaging.getTotalSoldierCount())) {
                     tryBuildTowardsLowRubble(RobotType.MINER);
                 } else {
                     boolean bestForMeToBuildSoldier;
-                    if (!hasFrontiers || rng.nextDouble() < 0.5) {
+                    if ((!hasFrontiers || rng.nextDouble() < 0.5) && turnCount > initialArchonCount) {
                         int idx = 0;
                         while (idx < initialArchonCount - 1 && Messaging.isEnemyArchonDead(TypeSoldier.enemyArchons[idx]))
                             idx++;
-                        self.setIndicatorString("my target is " + TypeSoldier.enemyArchons[idx] + " " + Messaging.isArchonAvailable(archonIndex));
                         bestForMeToBuildSoldier = Messaging.getClosestArchonTo(TypeSoldier.enemyArchons[idx]) == archonIndex;
                     } else {
                         bestForMeToBuildSoldier = Messaging
                                 .getClosestArchonTo(Messaging.FRONTIER_START, Messaging.FRONTIER_END, archonIndex) == archonIndex;
                     }
+                    bestForMeToBuildSoldier |= self.getTeamLeadAmount(us) > initialArchonCount * 75 / 2;
 
                     if (!shouldBuildMiner) {
                         // if (soldierCount <= minSoldierCount + 100)
@@ -158,6 +159,12 @@ public strictfp class TypeArchon extends Globals {
                 self.transform();
         }
 
+/*
+        MapLocation here = self.getLocation();
+        int left = Clock.getBytecodesLeft();
+        PathFindingGenerated.findPath(new MapLocation(here.x + 2, here.y + 2));
+        System.out.println("path finding took " + (left - Clock.getBytecodesLeft()));
+*/
 
         if (turnCount > initialArchonCount) {
             Messaging.writeSharedLocation(Messaging.getArchonOffset(archonIndex), self.getLocation());

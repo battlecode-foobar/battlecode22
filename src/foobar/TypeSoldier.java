@@ -13,7 +13,7 @@ public class TypeSoldier extends Globals {
     public static void step() throws GameActionException {
         if (firstRun()) {
             // RUSH_PATIENCE = us.equals(Team.A) ? 400 : 500;
-            rusher = Messaging.getTotalSoldierCount() < 100;
+            rusher = Messaging.getTotalSoldierCount() < RUSH_PATIENCE;
             chasingEnemy = false;
             calculateEnemyArchons();
         }
@@ -70,8 +70,8 @@ public class TypeSoldier extends Globals {
         MapLocation frontier = Messaging.getMostImportantFrontier();
         if (frontier != null) {
             self.setIndicatorLine(self.getLocation(), frontier, 0, 255, 255);
-            if (frontier.distanceSquaredTo(self.getLocation()) < 400)
-                PathFinding.moveToBug0(frontier, 80);
+            if (frontier.distanceSquaredTo(self.getLocation()) < 3600)
+                PathFinding.moveToBug0(frontier);
             else
                 PathFinding.wanderAvoidingObstacle(PathFinding.defaultObstacleThreshold);
         } else {
@@ -112,18 +112,15 @@ public class TypeSoldier extends Globals {
         }
 
         enemyArchons = new MapLocation[4];
-        int sumX = 0, sumY = 0;
         for (int i = 0; i < initialArchonCount; i++) {
-            sumX += ourArchons[i].x;
-            sumY += ourArchons[i].y;
             enemyArchons[i] = new MapLocation(oneLessWidth - ourArchons[i].x,
                     partialSymmetry ? ourArchons[i].y : oneLessHeight - ourArchons[i].y);
         }
         optimizeEnemyArchonOrder();
-        int weight = (initialArchonCount + 1) / 2;
+        MapLocation producerLoc = Messaging.getArchonLocation(Messaging.getClosestArchonTo(enemyArchons[0]));
         assemblyTarget = new MapLocation(
-                (sumX + enemyArchons[0].x * weight) / (initialArchonCount + weight),
-                (sumY + enemyArchons[0].y * weight) / (initialArchonCount + weight)
+                (2 * producerLoc.x + enemyArchons[0].x) / 3,
+                (2 * producerLoc.y + enemyArchons[0].y) / 3
         );
     }
 
@@ -158,7 +155,7 @@ public class TypeSoldier extends Globals {
             idx++;
 
         MapLocation theEnemy = enemyArchons[idx];
-        self.setIndicatorString("rushing " + idx + " " + theEnemy);
+        // self.setIndicatorString("rushing " + idx + " " + theEnemy);
 
         if (self.canSenseRobotAtLocation(theEnemy)) {
             RobotInfo info = self.senseRobotAtLocation(theEnemy);

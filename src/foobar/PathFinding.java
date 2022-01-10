@@ -140,8 +140,8 @@ public class PathFinding extends Globals {
      * @throws GameActionException If the location can't be sensed by the robot.
      */
     static int getCostAt(MapLocation loc) throws GameActionException {
-        if (self.canSenseRobotAtLocation(loc))
-            return 100; // A very high value to deter the planner.
+        if (self.canSenseRobotAtLocation(loc) || !self.canSenseLocation(loc))
+            return 0xFFFF; // A very high value to deter the planner.
         return 1 + self.senseRubble(loc) / 10;
     }
 
@@ -166,11 +166,11 @@ public class PathFinding extends Globals {
      * @throws GameActionException Actually it doesn't throw.
      */
     public static Path findPathWithAStar(MapLocation dest) throws GameActionException {
-        if (!self.canSenseLocation(dest))
-            return null;
-        LocationMap memory = new LocationMap(self.getType().visionRadiusSquared);
-        PathHeap open = new PathHeap(3 * self.getType().visionRadiusSquared);
         MapLocation here = self.getLocation();
+        if (here.distanceSquaredTo(dest) > 9 || !self.canSenseLocation(dest))
+            return null;
+        LocationMap memory = new LocationMap(9);
+        PathHeap open = new PathHeap(30);
         Path nothing = new Path(0, estimateCost(here, dest), self.getLocation(), null);
         open.add(nothing);
         memory.put(here, nothing);
@@ -182,7 +182,7 @@ public class PathFinding extends Globals {
                 continue;
             for (Direction dir : directions) {
                 MapLocation next = cur.loc.add(dir);
-                if (!self.canSenseLocation(next))
+                if (here.distanceSquaredTo(next) > 9 || !self.canSenseLocation(dest))
                     continue;
                 int newCostSoFar = cur.costSoFar + getCostAt(next);
                 Path stored = (Path) memory.get(next);
@@ -197,6 +197,7 @@ public class PathFinding extends Globals {
     }
 
     static final Direction[] directionsCycle = new Direction[]{
+            Direction.NORTH,
             Direction.NORTHWEST,
             Direction.WEST,
             Direction.SOUTHWEST,
@@ -207,7 +208,8 @@ public class PathFinding extends Globals {
             Direction.NORTH,
             Direction.NORTHWEST,
             Direction.WEST,
-            Direction.NORTHEAST
+            Direction.SOUTHWEST,
+            Direction.SOUTH
     };
 
     /**
@@ -220,9 +222,11 @@ public class PathFinding extends Globals {
         // 0.785398 is pi / 4
         int index = (int) Math.round(theta / 0.785398) + 4;
         return new Direction[]{
+                directionsCycle[index + 2],
                 directionsCycle[index + 1],
-                directionsCycle[index],
-                directionsCycle[index + 2]
+                directionsCycle[index + 3],
+                // directionsCycle[index],
+                // directionsCycle[index + 4],
         };
     }
 
@@ -238,16 +242,19 @@ public class PathFinding extends Globals {
         double theta = Math.atan2(dest.y - here.y, dest.x - here.x);
         int minCost = Integer.MAX_VALUE;
         Direction minCostDir = null;
+        String x = "";
         for (Direction dir : getDiscreteDirection(theta)) {
             MapLocation there = here.add(dir);
             if (!self.canSenseLocation(there))
                 continue;
+            x += dir;
             int costThere = getCostAt(there);
             if (costThere < minCost) {
                 minCost = costThere;
                 minCostDir = dir;
             }
         }
+        self.setIndicatorString(minCostDir + " " + minCost);
         if (minCost == Integer.MAX_VALUE)
             return null;
         return minCostDir;
@@ -262,7 +269,7 @@ public class PathFinding extends Globals {
             around[i] = self.canSenseLocation(there) ? self.senseRubble(there) : Integer.MAX_VALUE;
         }
         Arrays.sort(around);
-        defaultObstacleThreshold = Math.max(30, around[1] + 17);
+        defaultObstacleThreshold = 26;
     }
 
     /**
@@ -274,7 +281,18 @@ public class PathFinding extends Globals {
     static boolean notObstacle(Direction dir, int obstacleThreshold) throws GameActionException {
         // TODO: obstacle detection: perhaps rubble over a certain threshold?
         MapLocation there = self.getLocation().add(dir);
+        for (MapLocation past : history)
+            if (there.equals(past))
+                return true;
         return self.senseRubble(there) <= obstacleThreshold;
+    }
+
+    static MapLocation[] history = new MapLocation[3];
+    static int historyPtr = 0;
+
+    static void addToHistory(MapLocation loc) {
+        history[historyPtr++] = loc;
+        historyPtr %= history.length;
     }
 
     /**
@@ -299,6 +317,7 @@ public class PathFinding extends Globals {
             for (int i = 0; i < 8; i++) {
                 if (self.canMove(bugDirection) && notObstacle(bugDirection, obstacleThreshold)) {
                     self.move(bugDirection);
+                    addToHistory(here);
                     bugDirection = bugDirection.rotateLeft();
                     break;
                 } else
@@ -318,6 +337,7 @@ public class PathFinding extends Globals {
         Direction dir = findDirectionTo(dest);
         if (dir != null && self.canMove(dir)) {
             self.move(dir);
+            addToHistory(self.getLocation());
             return;
         }
         moveToBug0(dest, defaultObstacleThreshold);
