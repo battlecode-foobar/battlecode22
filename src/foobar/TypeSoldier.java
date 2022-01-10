@@ -8,11 +8,13 @@ public class TypeSoldier extends Globals {
     static MapLocation assemblyTarget;
     static MapLocation[] enemyArchons;
     static boolean rusher;
+    static boolean chasingEnemy;
 
     public static void step() throws GameActionException {
         if (firstRun()) {
             // RUSH_PATIENCE = us.equals(Team.A) ? 400 : 500;
             rusher = Messaging.getTotalSoldierCount() < RUSH_PATIENCE;
+            chasingEnemy = false;
             calculateEnemyArchons();
         }
 
@@ -23,6 +25,7 @@ public class TypeSoldier extends Globals {
         if (!rusher) {
             supportFrontier();
         } else {
+            updateEnemyArchons();
             if (Messaging.getTotalSoldierCount() < RUSH_PATIENCE) {
                 self.setIndicatorString("assemble at " + assemblyTarget);
                 PathFinding.moveToBug0(assemblyTarget, 80);
@@ -70,7 +73,7 @@ public class TypeSoldier extends Globals {
             if (frontier.distanceSquaredTo(self.getLocation()) < 400)
                 PathFinding.moveToBug0(frontier, 80);
             else
-                PathFinding.wanderAvoidingObstacle(PathFinding.DEFAULT_OBSTACLE_THRESHOLD);
+                PathFinding.wanderAvoidingObstacle(PathFinding.defaultObstacleThreshold);
         } else {
             int minDis = Integer.MAX_VALUE;
             MapLocation minDisLoc = null;
@@ -84,7 +87,7 @@ public class TypeSoldier extends Globals {
             if (minDisLoc != null && minDis > 16) {
                 PathFinding.moveToBug0(minDisLoc);
             } else {
-                PathFinding.wanderAvoidingObstacle(PathFinding.DEFAULT_OBSTACLE_THRESHOLD);
+                PathFinding.wanderAvoidingObstacle(PathFinding.defaultObstacleThreshold);
             }
         }
     }
@@ -108,7 +111,7 @@ public class TypeSoldier extends Globals {
                 break;
         }
 
-        enemyArchons = new MapLocation[initialArchonCount];
+        enemyArchons = new MapLocation[4];
         int sumX = 0, sumY = 0;
         for (int i = 0; i < initialArchonCount; i++) {
             sumX += ourArchons[i].x;
@@ -116,6 +119,26 @@ public class TypeSoldier extends Globals {
             enemyArchons[i] = new MapLocation(oneLessWidth - ourArchons[i].x,
                     partialSymmetry ? ourArchons[i].y : oneLessHeight - ourArchons[i].y);
         }
+        optimizeEnemyArchonOrder();
+        int weight = (initialArchonCount + 1) / 2;
+        assemblyTarget = new MapLocation(
+                (sumX + enemyArchons[0].x * weight) / (initialArchonCount + weight),
+                (sumY + enemyArchons[0].y * weight) / (initialArchonCount + weight)
+        );
+    }
+
+    static void updateEnemyArchons() throws GameActionException {
+        int idx = 0;
+        for (int i = Messaging.ENEMY_ARCHON_START; i < Messaging.ENEMY_ARCHON_END; i++) {
+            int raw = self.readSharedArray(i);
+            if (raw == Messaging.IMPOSSIBLE_LOCATION)
+                continue;
+            enemyArchons[idx++] = Messaging.decodeLocation(raw);
+        }
+        optimizeEnemyArchonOrder();
+    }
+
+    static void optimizeEnemyArchonOrder() {
         for (int i = 1; i < initialArchonCount - 1; i++) {
             int closest = i;
             MapLocation prev = enemyArchons[i - 1];
@@ -126,11 +149,6 @@ public class TypeSoldier extends Globals {
             enemyArchons[i] = enemyArchons[closest];
             enemyArchons[closest] = temp;
         }
-        int weight = (initialArchonCount + 1) / 2;
-        assemblyTarget = new MapLocation(
-                (sumX + enemyArchons[0].x * weight) / (initialArchonCount + weight),
-                (sumY + enemyArchons[0].y * weight) / (initialArchonCount + weight)
-        );
     }
 
     static void rush() throws GameActionException {
@@ -138,8 +156,18 @@ public class TypeSoldier extends Globals {
         int idx = 0;
         while (idx < initialArchonCount - 1 && Messaging.isArchonDead(enemyArchons[idx]))
             idx++;
+
         MapLocation theEnemy = enemyArchons[idx];
         self.setIndicatorString("rushing " + idx + " " + theEnemy);
-        PathFinding.moveToBug0(theEnemy, 80);
+
+        if (self.canSenseRobotAtLocation(theEnemy)) {
+            RobotInfo info = self.senseRobotAtLocation(theEnemy);
+            if (!info.getType().equals(RobotType.ARCHON)) {
+                rusher = false;
+                findEnemyAndAttack();
+            }
+        }
+
+        PathFinding.moveToBug0(theEnemy);
     }
 }

@@ -112,8 +112,6 @@ public strictfp class TypeMiner extends Globals {
                     searchForTarget();
                     return;
                 }
-
-                log("At target");
             }
         } else {
             // If we don't even have a target, then wander around
@@ -145,7 +143,7 @@ public strictfp class TypeMiner extends Globals {
 
         if (mostLead > 0) {
             targetLoc = bestLocation;
-            log("Droid " + self.getID() + " found lead amount " + mostLead + " @(" + targetLoc.x + "," + targetLoc.y + ")");
+            // log("Droid " + self.getID() + " found lead amount " + mostLead + " @(" + targetLoc.x + "," + targetLoc.y + ")");
         }
 
         Messaging.reportAllEnemiesAround();

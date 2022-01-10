@@ -40,7 +40,7 @@ public strictfp class TypeArchon extends Globals {
         minerCount = 0;
         soldierCount = 0;
         builderCount = 0;
-        for (int i = Messaging.DEAD_ARCHON_START; i < Messaging.DEAD_ARCHON_END; i++)
+        for (int i = Messaging.DEAD_ARCHON_START; i < Messaging.ENEMY_ARCHON_END; i++)
             self.writeSharedArray(i, Messaging.IMPOSSIBLE_LOCATION);
     }
 
@@ -57,37 +57,70 @@ public strictfp class TypeArchon extends Globals {
                 int index = Messaging.FRONTIER_START + rng.nextInt(Messaging.FRONTIER_END - Messaging.FRONTIER_START);
                 self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
             }
+/*
+            int index = Messaging.ENEMY_ARCHON_START + rng.nextInt(Messaging.ENEMY_ARCHON_END - Messaging.ENEMY_ARCHON_START);
+            self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
+*/
         }
+
         Messaging.reportAllEnemiesAround();
 
         int minSoldierCount = Integer.MAX_VALUE;
         int minMinerCount = Integer.MAX_VALUE;
-        int totalMinerCount = 0;
         for (int i = 0; i < initialArchonCount; i++) {
             minSoldierCount = Math.min(minSoldierCount, Messaging.getArchonSoldierCount(i));
             minMinerCount = Math.min(minMinerCount, Messaging.getArchonMinerCount(i));
-            totalMinerCount += Messaging.getArchonMinerCount(i);
         }
 
-        // self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
-        // This mostly the same as the lecture player.
-        if (minerCount < 8) {
-            tryBuildTowardsLowRubble(RobotType.MINER);
-        } else if (soldierCount < 10) {
-            tryBuildTowardsLowRubble(RobotType.SOLDIER);
-        } else if (builderCount < 1) {
-            tryBuildTowardsLowRubble(RobotType.BUILDER);
-        } else if (minerCount < soldierCount * 5 / 10 && self.getTeamLeadAmount(us) < 5000) {
-            tryBuildTowardsLowRubble(RobotType.MINER);
-        } else if (builderCount < soldierCount / 30) {
-            tryBuildTowardsLowRubble(RobotType.BUILDER);
-        } else {
-            self.setIndicatorString("min soldier count: " + minSoldierCount + " my soldier: " + soldierCount);
-            if (soldierCount <= minSoldierCount + 100)
-                tryBuildTowardsLowRubble(RobotType.SOLDIER);
+
+        int maxSoldierCount = 0;
+        int maxSoldierCountArchon = 0;
+        for (int i = 0; i < initialArchonCount; i++) {
+            int thisSoldierCount = Messaging.getArchonSoldierCount(i);
+            if (thisSoldierCount > maxSoldierCount) {
+                maxSoldierCount = thisSoldierCount;
+                maxSoldierCountArchon = i;
+            }
         }
+
+        if (self.getMode().equals(RobotMode.TURRET)) {
+            // self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
+            // This mostly the same as the lecture player.
+            if (minerCount < 8) {
+                tryBuildTowardsLowRubble(RobotType.MINER);
+            } else if (soldierCount < 10) {
+                tryBuildTowardsLowRubble(RobotType.SOLDIER);
+            } else if (builderCount < 1) {
+                tryBuildTowardsLowRubble(RobotType.BUILDER);
+            } else if (minerCount < soldierCount * 5 / 10 && self.getTeamLeadAmount(us) < 5000) {
+                tryBuildTowardsLowRubble(RobotType.MINER);
+            } else if (builderCount < soldierCount / 30) {
+                tryBuildTowardsLowRubble(RobotType.BUILDER);
+            } else {
+                self.setIndicatorString("min soldier count: " + minSoldierCount + " my soldier: " + soldierCount);
+                if (soldierCount <= minSoldierCount + 100)
+                    tryBuildTowardsLowRubble(RobotType.SOLDIER);
+            }
+
+            if (self.senseNearbyRobots(self.getLocation(), self.getType().visionRadiusSquared, them).length > 0) {
+                MapLocation target = Messaging.getArchonLocation(maxSoldierCountArchon);
+                int distanceToTarget = self.getLocation().distanceSquaredTo(target);
+                if (distanceToTarget > 10 && self.canTransform())
+                    self.transform();
+            }
+        } else if (self.getMode().equals(RobotMode.PORTABLE)) {
+            // System.out.println("Max soldiers: " + maxSoldierCount + " archon: " + maxSoldierCountArchon);
+            MapLocation target = Messaging.getArchonLocation(maxSoldierCountArchon);
+            int distanceToTarget = self.getLocation().distanceSquaredTo(target);
+            if (distanceToTarget > 10)
+                PathFinding.moveToBug0(target);
+            if (distanceToTarget <= 10 && self.canTransform())
+                self.transform();
+        }
+
 
         if (turnCount > initialArchonCount) {
+            Messaging.writeSharedLocation(Messaging.getArchonOffset(archonIndex), self.getLocation());
             self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.SOLDIER_COUNT, soldierCount);
             self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.MINER_COUNT, minerCount);
         }
