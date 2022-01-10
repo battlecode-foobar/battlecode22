@@ -86,7 +86,7 @@ public strictfp class TypeArchon extends Globals {
         if (self.getMode().equals(RobotMode.TURRET)) {
             // self.setIndicatorString("lead: " + self.getTeamLeadAmount(us));
             // This mostly the same as the lecture player.
-            if (minerCount < 8) {
+            if (minerCount < 8 && minerCount == minMinerCount) {
                 tryBuildTowardsLowRubble(RobotType.MINER);
             } else if (soldierCount < 10) {
                 tryBuildTowardsLowRubble(RobotType.SOLDIER);
