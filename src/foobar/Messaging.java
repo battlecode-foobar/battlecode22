@@ -244,13 +244,17 @@ public class Messaging extends Globals {
             throws GameActionException {
         int encoded = encodeLocation(loc);
         for (int i = start; i < end; i++) {
-            if (self.readSharedArray(i) == IMPOSSIBLE_LOCATION
-                    || (replace && readSharedLocation(i).distanceSquaredTo(loc) < proximity)) {
+            int raw = self.readSharedArray(i);
+            if (raw == IMPOSSIBLE_LOCATION) {
                 self.writeSharedArray(i, encoded);
                 return;
             }
-            if (readSharedLocation(i).distanceSquaredTo(loc) < proximity)
+            MapLocation there = decodeLocation(raw);
+            if (there.distanceSquaredTo(loc) <= proximity) {
+                if (replace)
+                    self.writeSharedArray(i, encoded);
                 return;
+            }
         }
         int offset = rng.nextInt(end - start);
         self.writeSharedArray(start + offset, encoded);
@@ -318,12 +322,16 @@ public class Messaging extends Globals {
     public static void claimMine(MapLocation loc) throws GameActionException {
         for (int i = MINER_START; i < MINER_END; i++) {
             int raw = self.readSharedArray(i);
+/*
+            if (raw == IMPOSSIBLE_LOCATION || (raw & MINE_CLAIM_MASK) != 0)
+                continue;
+*/
             if (raw == IMPOSSIBLE_LOCATION)
                 continue;
             MapLocation there = decodeLocation(raw);
-            if (loc.distanceSquaredTo(there) < MINE_PROXIMITY) {
-                self.writeSharedArray(i, raw | MINE_CLAIM_MASK);
-                // self.writeSharedArray(i, IMPOSSIBLE_LOCATION);
+            if (loc.distanceSquaredTo(there) <= MINE_PROXIMITY) {
+                // self.writeSharedArray(i, raw | MINE_CLAIM_MASK);
+                self.writeSharedArray(i, IMPOSSIBLE_LOCATION);
                 break;
             }
         }
@@ -347,7 +355,11 @@ public class Messaging extends Globals {
     public static boolean hasCoordinateIn(int start, int end) throws GameActionException {
         for (int i = start; i < end; i++) {
             int raw = self.readSharedArray(i);
+/*
             if (raw != IMPOSSIBLE_LOCATION && (raw & MINE_CLAIM_MASK) == 0)
+                return true;
+*/
+            if (raw != IMPOSSIBLE_LOCATION)
                 return true;
         }
         return false;
@@ -373,7 +385,11 @@ public class Messaging extends Globals {
         int minDisArchon = defaultValue;
         for (int i = start; i < end; i++) {
             int raw = self.readSharedArray(i);
+/*
             if (raw == Messaging.IMPOSSIBLE_LOCATION || (raw & MINE_CLAIM_MASK) != 0)
+                continue;
+*/
+            if (raw == IMPOSSIBLE_LOCATION)
                 continue;
             for (int j = 0; j < initialArchonCount; j++) {
                 if (!isArchonAvailable(j))

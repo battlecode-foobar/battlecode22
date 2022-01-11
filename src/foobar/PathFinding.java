@@ -11,8 +11,7 @@ import java.util.*;
  * Very naive path finding.
  */
 public class PathFinding extends Globals {
-    static int defaultObstacleThreshold = 42;
-
+    static int defaultObstacleThreshold = 3;
 
     /**
      * A path.
@@ -167,9 +166,8 @@ public class PathFinding extends Globals {
      *
      * @param dest The destination, must be within vision range of the robot.
      * @return The least-cost path, or null if the given location is out-of-range.
-     * @throws GameActionException Actually it doesn't throw.
      */
-    public static Path findPathWithAStar(MapLocation dest) throws GameActionException {
+    public static Path findPathWithAStar(MapLocation dest) {
         MapLocation here = self.getLocation();
         if (here.distanceSquaredTo(dest) > 9 || !self.canSenseLocation(dest))
             return null;
@@ -229,8 +227,6 @@ public class PathFinding extends Globals {
                 directionsCycle[index + 2],
                 directionsCycle[index + 1],
                 directionsCycle[index + 3],
-                // directionsCycle[index],
-                // directionsCycle[index + 4],
         };
     }
 
@@ -286,20 +282,15 @@ public class PathFinding extends Globals {
     }
 
     static Direction bugDirection = null;
+    static boolean rotatingLeft = false;
 
     /**
      * Adaptively update the obstacle threshold for path finding algorithms.
      */
     static void updateObstacleThreshold() {
         int[] around = new int[directions.length];
-        for (int i = 0; i < directions.length; i++) {
-            MapLocation there = self.getLocation().add(directions[i]);
-            try {
-                around[i] = self.canSenseLocation(there) ? self.senseRubble(there) : Integer.MAX_VALUE;
-            } catch (GameActionException e) {
-                around[i] = Integer.MAX_VALUE;
-            }
-        }
+        for (int i = 0; i < directions.length; i++)
+            around[i] = getCostAt(self.getLocation().add(directions[i]));
         Arrays.sort(around);
         defaultObstacleThreshold = around[1] + 16;
     }
@@ -310,17 +301,10 @@ public class PathFinding extends Globals {
      * @param theta A reference direction.
      */
     static void updateObstacleThreshold(double theta) {
-        int minRubble = Integer.MAX_VALUE;
-        for (Direction dir : getDiscreteDirection5(theta)) {
-            MapLocation there = self.getLocation().add(dir);
-            try {
-                if (self.canSenseLocation(there))
-                    minRubble = Math.min(minRubble, self.senseRubble(there));
-            } catch (GameActionException e) {
-                // Do nothing.
-            }
-        }
-        defaultObstacleThreshold = minRubble + 16;
+        int minCost = Integer.MAX_VALUE;
+        for (Direction dir : getDiscreteDirection5(theta))
+            minCost = Math.min(minCost, getCostAt(self.getLocation().add(dir)));
+        defaultObstacleThreshold = minCost + 1;
     }
 
     /**
@@ -331,14 +315,12 @@ public class PathFinding extends Globals {
      */
     static boolean notObstacle(Direction dir, int obstacleThreshold) {
         MapLocation there = self.getLocation().add(dir);
+/*
         for (MapLocation past : history)
             if (there.equals(past))
                 return true;
-        try {
-            return self.senseRubble(there) <= obstacleThreshold;
-        } catch (GameActionException e) {
-            return true;
-        }
+*/
+        return getCostAt(there) <= obstacleThreshold;
     }
 
     static MapLocation[] history = new MapLocation[3];
@@ -387,15 +369,18 @@ public class PathFinding extends Globals {
         if (notObstacle(dir, obstacleThreshold) && tryMove(dir)) {
             bugDirection = null;
         } else {
-            if (bugDirection == null)
+            if (bugDirection == null) {
                 bugDirection = dir;
+                // rotatingLeft = rng.nextBoolean();
+                rotatingLeft = !rotatingLeft;
+            }
             for (int i = 0; i < 8; i++) {
                 if (notObstacle(bugDirection, obstacleThreshold) && tryMove(bugDirection)) {
                     addToHistory(here);
-                    bugDirection = bugDirection.rotateLeft();
+                    bugDirection = rotatingLeft ? bugDirection.rotateLeft() : bugDirection.rotateRight();
                     break;
                 } else
-                    bugDirection = bugDirection.rotateRight();
+                    bugDirection = rotatingLeft ? bugDirection.rotateRight() : bugDirection.rotateLeft();
             }
         }
     }
@@ -408,11 +393,14 @@ public class PathFinding extends Globals {
     public static void moveToBug0(MapLocation dest) {
         if (!dest.equals(self.getLocation())) {
             updateObstacleThreshold(getTheta(dest));
+
+/*
             Direction dir = findDirectionTo(dest);
             if (dir != null && tryMove(dir)) {
                 addToHistory(self.getLocation());
                 return;
             }
+*/
         }
         moveToBug0(dest, defaultObstacleThreshold);
     }
@@ -439,9 +427,8 @@ public class PathFinding extends Globals {
 
     /**
      * Spread out.
-     * @throws GameActionException Actually doesn't throw.
      */
-    public static void spreadOut() throws GameActionException {
+    public static void spreadOut() {
         updateObstacleThreshold();
         MapLocation here = self.getLocation();
         RobotInfo[] botsAround = self.senseNearbyRobots();
@@ -456,7 +443,7 @@ public class PathFinding extends Globals {
         double theta = Math.atan2(y, x);
         Direction[] candidates = getDiscreteDirection5(theta);
         Direction dir = candidates[rng.nextInt(candidates.length)];
-        if (self.canMove(dir) && notObstacle(dir, defaultObstacleThreshold))
-            self.move(dir);
+        if (notObstacle(dir, defaultObstacleThreshold))
+            tryMove(dir);
     }
 }

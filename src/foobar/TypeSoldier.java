@@ -124,6 +124,8 @@ public class TypeSoldier extends Globals {
         }
 
         enemyArchons = new MapLocation[4];
+        if (initialArchonCount == 0)
+            return;
         for (int i = 0; i < initialArchonCount; i++) {
             enemyArchons[i] = new MapLocation(oneLessWidth - ourArchons[i].x,
                     partialSymmetry ? ourArchons[i].y : oneLessHeight - ourArchons[i].y);

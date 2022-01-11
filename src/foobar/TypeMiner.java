@@ -47,10 +47,17 @@ public strictfp class TypeMiner extends Globals {
 
         Messaging.reportAllEnemiesAround();
         Messaging.reportAllMinesAround();
+        Messaging.claimMine(self.getLocation());
         tryMineResources();
 
-        if (targetLoc == null || !isTargetStillValid())
-            searchForTarget();
+        if (targetLoc == null || !isTargetStillValid()) {
+            targetLoc = searchForTarget();
+        } else {
+            MapLocation newLoc = searchForTarget();
+            MapLocation here = self.getLocation();
+            if (newLoc != null && newLoc.distanceSquaredTo(here) < targetLoc.distanceSquaredTo(here))
+                targetLoc = newLoc;
+        }
 
         if (targetLoc != null) {
             self.setIndicatorString("moving to target " + targetLoc);
@@ -63,12 +70,16 @@ public strictfp class TypeMiner extends Globals {
         }
     }
 
-    static void searchForTarget() throws GameActionException {
+    static MapLocation searchForTarget() throws GameActionException {
         int minDis = Integer.MAX_VALUE;
         MapLocation minDisLoc = null;
         for (int i = Messaging.MINER_START; i < Messaging.MINER_END; i++) {
             int raw = self.readSharedArray(i);
+/*
             if (raw == Messaging.IMPOSSIBLE_LOCATION || (raw & Messaging.MINE_CLAIM_MASK) != 0)
+                continue;
+*/
+            if (raw == Messaging.IMPOSSIBLE_LOCATION)
                 continue;
             MapLocation there = Messaging.decodeLocation(raw);
             if (self.getLocation().distanceSquaredTo(there) < minDis) {
@@ -76,7 +87,7 @@ public strictfp class TypeMiner extends Globals {
                 minDisLoc = there;
             }
         }
-        targetLoc = minDisLoc;
+        return minDisLoc;
     }
 
     static int getNeighboringMinerCount(MapLocation loc) throws GameActionException {
@@ -99,14 +110,18 @@ public strictfp class TypeMiner extends Globals {
 
     static boolean isTargetStillValid() throws GameActionException {
         if (!self.canSenseLocation(targetLoc)) {
+/*
             for (int i = Messaging.MINER_START; i < Messaging.MINER_END; i++) {
                 int raw = self.readSharedArray(i);
                 if (raw == Messaging.IMPOSSIBLE_LOCATION)
                     continue;
                 MapLocation loc = Messaging.decodeLocation(raw);
                 if (loc.distanceSquaredTo(targetLoc) <= Messaging.MINE_PROXIMITY)
-                    return (raw & Messaging.MINE_CLAIM_MASK) == 0;
+                    return true;
+                    // return (raw & Messaging.MINE_CLAIM_MASK) == 0;
             }
+            return false;
+*/
             return true;
         }
 
@@ -152,7 +167,6 @@ public strictfp class TypeMiner extends Globals {
             while (self.canMineGold(mineLocation))
                 self.mineGold(mineLocation);
             while (self.canMineLead(mineLocation) && self.senseLead(mineLocation) > sustainableLeadThreshold) {
-                Messaging.claimMine(mineLocation);
                 self.mineLead(mineLocation);
             }
         }

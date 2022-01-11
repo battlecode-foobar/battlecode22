@@ -60,10 +60,12 @@ public strictfp class TypeArchon extends Globals {
                 int index = Messaging.FRONTIER_START + rng.nextInt(Messaging.FRONTIER_END - Messaging.FRONTIER_START);
                 self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
             }
+/*
             for (int i = 0; i < 6; i++) {
                 int index = Messaging.MINER_START + rng.nextInt(Messaging.MINER_END - Messaging.MINER_START);
                 self.writeSharedArray(index, self.readSharedArray(index) & Messaging.MINE_UNCLAIM_MASK);
             }
+*/
         }
 
         Messaging.reportAllEnemiesAround();
