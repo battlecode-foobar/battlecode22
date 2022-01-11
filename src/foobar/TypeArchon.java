@@ -138,7 +138,7 @@ public strictfp class TypeArchon extends Globals {
                         bestForMeToBuildSoldier = Messaging
                                 .getClosestArchonTo(Messaging.FRONTIER_START, Messaging.FRONTIER_END, archonIndex) == archonIndex;
                     }
-                    // But of course if we have surplus we don't mind building more miners.
+                    // But of course if we have surplus we don't mind building more soldiers.
                     bestForMeToBuildSoldier |= self.getTeamLeadAmount(us) > 300;
 
                     if (bestForMeToBuildSoldier)
