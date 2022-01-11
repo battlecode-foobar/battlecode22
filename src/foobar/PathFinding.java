@@ -138,12 +138,15 @@ public class PathFinding extends Globals {
      *
      * @param loc The location.
      * @return The cost of that location.
-     * @throws GameActionException If the location can't be sensed by the robot.
      */
-    static int getCostAt(MapLocation loc) throws GameActionException {
+    static int getCostAt(MapLocation loc) {
         if (self.canSenseRobotAtLocation(loc) || !self.canSenseLocation(loc))
             return 0xFFFF; // A very high value to deter the planner.
-        return 1 + self.senseRubble(loc) / 10;
+        try {
+            return 1 + self.senseRubble(loc) / 10;
+        } catch (GameActionException e) {
+            return 0xFFFF;
+        }
     }
 
     /**
@@ -249,19 +252,26 @@ public class PathFinding extends Globals {
     }
 
     /**
+     * Gets the accurate direction to from the current location to the given destination in radians.
+     * @param dest The destination.
+     * @return The direction from the current location to dest, in radians, relative to the positive x-axis.
+     */
+    static double getTheta(MapLocation dest) {
+        MapLocation here = self.getLocation();
+        return Math.atan2(dest.y - here.y, dest.x - here.x);
+    }
+
+    /**
      * Returns the local-best direction to approach the dest from where the robot is in.
      *
      * @param dest The destination.
      * @return A direction locally the best for the robot to move.
-     * @throws GameActionException Actually doesn't throw.
      */
-    public static Direction findDirectionTo(MapLocation dest) throws GameActionException {
-        MapLocation here = self.getLocation();
-        double theta = Math.atan2(dest.y - here.y, dest.x - here.x);
+    public static Direction findDirectionTo(MapLocation dest) {
         int minCost = Integer.MAX_VALUE;
         Direction minCostDir = null;
-        for (Direction dir : getDiscreteDirection3(theta)) {
-            MapLocation there = here.add(dir);
+        for (Direction dir : getDiscreteDirection3(getTheta(dest))) {
+            MapLocation there = self.getLocation().add(dir);
             if (!self.canSenseLocation(there))
                 continue;
             int costThere = getCostAt(there);
@@ -277,14 +287,40 @@ public class PathFinding extends Globals {
 
     static Direction bugDirection = null;
 
-    static void updateObstacleThreshold() throws GameActionException {
+    /**
+     * Adaptively update the obstacle threshold for path finding algorithms.
+     */
+    static void updateObstacleThreshold() {
         int[] around = new int[directions.length];
         for (int i = 0; i < directions.length; i++) {
             MapLocation there = self.getLocation().add(directions[i]);
-            around[i] = self.canSenseLocation(there) ? self.senseRubble(there) : Integer.MAX_VALUE;
+            try {
+                around[i] = self.canSenseLocation(there) ? self.senseRubble(there) : Integer.MAX_VALUE;
+            } catch (GameActionException e) {
+                around[i] = Integer.MAX_VALUE;
+            }
         }
         Arrays.sort(around);
         defaultObstacleThreshold = around[1] + 16;
+    }
+
+    /**
+     * Adaptively update the obstacle threshold for path finding algorithms.
+     *
+     * @param theta A reference direction.
+     */
+    static void updateObstacleThreshold(double theta) {
+        int minRubble = Integer.MAX_VALUE;
+        for (Direction dir : getDiscreteDirection5(theta)) {
+            MapLocation there = self.getLocation().add(dir);
+            try {
+                if (self.canSenseLocation(there))
+                    minRubble = Math.min(minRubble, self.senseRubble(there));
+            } catch (GameActionException e) {
+                // Do nothing.
+            }
+        }
+        defaultObstacleThreshold = minRubble + 16;
     }
 
     /**
@@ -293,45 +329,68 @@ public class PathFinding extends Globals {
      * @param dir The direction.
      * @return If cell in the direction can be considered an obstacle.
      */
-    static boolean notObstacle(Direction dir, int obstacleThreshold) throws GameActionException {
-        // TODO: obstacle detection: perhaps rubble over a certain threshold?
+    static boolean notObstacle(Direction dir, int obstacleThreshold) {
         MapLocation there = self.getLocation().add(dir);
         for (MapLocation past : history)
             if (there.equals(past))
                 return true;
-        return self.senseRubble(there) <= obstacleThreshold;
+        try {
+            return self.senseRubble(there) <= obstacleThreshold;
+        } catch (GameActionException e) {
+            return true;
+        }
     }
 
     static MapLocation[] history = new MapLocation[3];
     static int historyPtr = 0;
 
+    /**
+     * Adds a location to movement history.
+     * @param loc The location to be added.
+     */
     static void addToHistory(MapLocation loc) {
         history[historyPtr++] = loc;
         historyPtr %= history.length;
     }
 
     /**
+     * Tries to move in a direction. This is a safe wrapper that doesn't throw any exceptions that would possibly
+     * disrupt the flow of the caller.
+     *
+     * @param dir The direction.
+     * @return If movement succeeds.
+     */
+    public static boolean tryMove(Direction dir) {
+        try {
+            if (self.canMove(dir)) {
+                self.move(dir);
+                return true;
+            }
+            return false;
+        } catch (GameActionException e) {
+            return false;
+        }
+    }
+
+    /**
      * Use Bug 0 algorithm to move to the target.
      *
      * @param dest The target.
-     * @throws GameActionException Actually doesn't throw.
      */
-    public static void moveToBug0(MapLocation dest, int obstacleThreshold) throws GameActionException {
+    static void moveToBug0(MapLocation dest, int obstacleThreshold) {
         if (!self.isMovementReady())
             return;
         MapLocation here = self.getLocation();
         if (here.equals(dest))
             return;
         Direction dir = here.directionTo(dest);
-        if (self.canMove(dir) && notObstacle(dir, obstacleThreshold)) {
-            self.move(dir);
+        if (notObstacle(dir, obstacleThreshold) && tryMove(dir)) {
             bugDirection = null;
         } else {
             if (bugDirection == null)
                 bugDirection = dir;
             for (int i = 0; i < 8; i++) {
-                if (self.canMove(bugDirection) && notObstacle(bugDirection, obstacleThreshold)) {
-                    self.move(bugDirection);
+                if (notObstacle(bugDirection, obstacleThreshold) && tryMove(bugDirection)) {
                     addToHistory(here);
                     bugDirection = bugDirection.rotateLeft();
                     break;
@@ -345,14 +404,12 @@ public class PathFinding extends Globals {
      * Use Bug 0 algorithm to move to the target.
      *
      * @param dest The target.
-     * @throws GameActionException Actually doesn't throw.
      */
-    public static void moveToBug0(MapLocation dest) throws GameActionException {
-        updateObstacleThreshold();
+    public static void moveToBug0(MapLocation dest) {
         if (!dest.equals(self.getLocation())) {
+            updateObstacleThreshold(getTheta(dest));
             Direction dir = findDirectionTo(dest);
-            if (dir != null && self.canMove(dir)) {
-                self.move(dir);
+            if (dir != null && tryMove(dir)) {
                 addToHistory(self.getLocation());
                 return;
             }
@@ -363,26 +420,27 @@ public class PathFinding extends Globals {
     /**
      * Randomly wander.
      *
-     * @throws GameActionException Actually doesn't throw.
      */
-    public static void wander() throws GameActionException {
+    public static void wander() {
         Direction dir = directions[rng.nextInt(directions.length)];
-        if (self.canMove(dir))
-            self.move(dir);
+        tryMove(dir);
     }
 
     /**
      * Randomly wander, but avoids obstacles.
      *
      * @param threshold The robot will avoid wandering to locations with rubbles exceeding this threshold.
-     * @throws GameActionException Actually doesn't throw.
      */
-    public static void wanderAvoidingObstacle(int threshold) throws GameActionException {
+    public static void wanderAvoidingObstacle(int threshold) {
         Direction dir = directions[rng.nextInt(directions.length)];
-        if (self.canMove(dir) && notObstacle(dir, threshold))
-            self.move(dir);
+        if (notObstacle(dir, threshold))
+            tryMove(dir);
     }
 
+    /**
+     * Spread out.
+     * @throws GameActionException Actually doesn't throw.
+     */
     public static void spreadOut() throws GameActionException {
         updateObstacleThreshold();
         MapLocation here = self.getLocation();
