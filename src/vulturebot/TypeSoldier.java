@@ -1,9 +1,8 @@
-package foobar;
+package vulturebot;
 
 import battlecode.common.*;
 
 public class TypeSoldier extends Globals {
-    // Even the aged oak will fall to the tempest’s winds.
     static final int RUSH_PATIENCE = 30;
 
     static MapLocation assemblyTarget;
