@@ -98,15 +98,17 @@ public strictfp class TypeMiner extends Globals {
     }
 
     static boolean isTargetStillValid() throws GameActionException {
-        // If not at target, then:
-        // 1: >5 lead amount (else someone's probably mining it sustainably
-        // 2: No robots near it (including on top of it)
-        // If at target, then:
-        // 1: Our mine is not depleted
-        // 2: If there are neighboring robots, nullify target with small probability
-
-        if (!self.canSenseLocation(targetLoc))
+        if (!self.canSenseLocation(targetLoc)) {
+            for (int i = Messaging.MINER_START; i < Messaging.MINER_END; i++) {
+                int raw = self.readSharedArray(i);
+                if (raw == Messaging.IMPOSSIBLE_LOCATION)
+                    continue;
+                MapLocation loc = Messaging.decodeLocation(raw);
+                if (loc.distanceSquaredTo(targetLoc) <= Messaging.MINE_PROXIMITY)
+                    return (raw & Messaging.MINE_CLAIM_MASK) == 0;
+            }
             return true;
+        }
 
         if (self.senseLead(targetLoc) == 0)
             return false;
