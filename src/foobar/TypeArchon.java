@@ -119,7 +119,7 @@ public strictfp class TypeArchon extends Globals {
                 boolean shouldBuildMiner = hasUnclaimedMine && bestForMeToBuildMiner;
                 // We should definitely build more miners, but later we should focus less on building miners.
                 shouldBuildMiner &= Messaging.getTotalMinerCount() <= STARTUP_MINER_THRESHOLD
-                        || rng.nextDouble() < 0.15;
+                        || rng.nextDouble() < 0.125;
                 shouldBuildMiner &= self.senseNearbyRobots(100, them).length == 0;
 
                 if (shouldBuildMiner) {
