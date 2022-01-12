@@ -72,7 +72,9 @@ public class Messaging extends Globals {
     /**
      * End index of miner broadcast region in the shared array.
      */
-    public static final int MINER_END = MINER_START + 24;
+    public static final int MINER_END = MINER_START + 23;
+    public static final int BUILDWATCHTOWER_START = MINER_END;
+    public static final int BUILDWATCHTOWER_END = BUILDWATCHTOWER_START+1;
     /**
      * Bit masking for claimed mine.
      */

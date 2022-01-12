@@ -92,6 +92,9 @@ public strictfp class TypeArchon extends Globals {
         self.setIndicatorString("lead " + self.getTeamLeadAmount(us));
 
         if (self.getMode().equals(RobotMode.TURRET)) {
+            // Purely debugging purposes; quick & dirty
+            if (turnCount % 100 == 0 || turnCount < 5)
+                tryBuildTowardsLowRubble(RobotType.BUILDER);
             // Build miners to start.
             if (turnCount <= 4 && minerCount < 2) {
                 tryBuildTowardsLowRubble(RobotType.MINER);
@@ -123,6 +126,7 @@ public strictfp class TypeArchon extends Globals {
                 shouldBuildMiner &= Messaging.getTotalMinerCount() <= STARTUP_MINER_THRESHOLD
                         || rng.nextDouble() < 0.125;
                 shouldBuildMiner &= self.senseNearbyRobots(100, them).length == 0;
+                shouldBuildMiner &= self.readSharedArray(Messaging.BUILDWATCHTOWER_START) != 1;
 
                 if (shouldBuildMiner) {
                     tryBuildTowardsLowRubble(RobotType.MINER);
@@ -142,6 +146,8 @@ public strictfp class TypeArchon extends Globals {
                     }
                     // But of course if we have surplus we don't mind building more soldiers.
                     bestForMeToBuildSoldier |= self.getTeamLeadAmount(us) > 300;
+                    // for debugging
+                    bestForMeToBuildSoldier &= self.readSharedArray(Messaging.BUILDWATCHTOWER_START) != 1 & false;
 
                     if (bestForMeToBuildSoldier)
                         tryBuildTowardsLowRubble(RobotType.SOLDIER);
