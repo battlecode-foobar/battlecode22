@@ -315,15 +315,13 @@ public class PathFinding extends Globals {
      */
     static boolean notObstacle(Direction dir, int obstacleThreshold) {
         MapLocation there = self.getLocation().add(dir);
-/*
         for (MapLocation past : history)
             if (there.equals(past))
                 return true;
-*/
         return getCostAt(there) <= obstacleThreshold;
     }
 
-    static MapLocation[] history = new MapLocation[3];
+    static MapLocation[] history = new MapLocation[2];
     static int historyPtr = 0;
 
     /**
