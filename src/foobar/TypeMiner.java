@@ -22,7 +22,7 @@ public strictfp class TypeMiner extends Globals {
     /**
      * A miner will not mine lead beneath this threshold
      */
-    static final int sustainableLeadThreshold = 0;
+    static final int sustainableLeadThreshold = 1;
 
     /**
      * All directions relative to our current position where we can try look for metals and try mine.
