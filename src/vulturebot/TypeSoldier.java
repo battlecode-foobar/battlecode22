@@ -3,6 +3,7 @@ package vulturebot;
 import battlecode.common.*;
 
 public class TypeSoldier extends Globals {
+    // Even the aged oak will fall to the tempest’s winds.
     static final int RUSH_PATIENCE = 30;
 
     static MapLocation assemblyTarget;
@@ -123,6 +124,8 @@ public class TypeSoldier extends Globals {
         }
 
         enemyArchons = new MapLocation[4];
+        if (initialArchonCount == 0)
+            return;
         for (int i = 0; i < initialArchonCount; i++) {
             enemyArchons[i] = new MapLocation(oneLessWidth - ourArchons[i].x,
                     partialSymmetry ? ourArchons[i].y : oneLessHeight - ourArchons[i].y);
