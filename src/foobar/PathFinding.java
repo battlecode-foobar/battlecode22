@@ -1,9 +1,6 @@
 package foobar;
 
-import battlecode.common.Direction;
-import battlecode.common.GameActionException;
-import battlecode.common.MapLocation;
-import battlecode.common.RobotInfo;
+import battlecode.common.*;
 
 import java.util.*;
 
@@ -139,12 +136,12 @@ public class PathFinding extends Globals {
      * @return The cost of that location.
      */
     static int getCostAt(MapLocation loc) {
-        if (self.canSenseRobotAtLocation(loc) || !self.canSenseLocation(loc))
-            return 0xFFFF; // A very high value to deter the planner.
+        if (!self.canSenseLocation(loc) || self.canSenseRobotAtLocation(loc))
+            return Integer.MAX_VALUE; // A very high value to deter the planner.
         try {
             return 1 + self.senseRubble(loc) / 10;
         } catch (GameActionException e) {
-            return 0xFFFF;
+            return Integer.MAX_VALUE;
         }
     }
 
@@ -249,6 +246,7 @@ public class PathFinding extends Globals {
 
     /**
      * Gets the accurate direction to from the current location to the given destination in radians.
+     *
      * @param dest The destination.
      * @return The direction from the current location to dest, in radians, relative to the positive x-axis.
      */
@@ -266,9 +264,12 @@ public class PathFinding extends Globals {
     public static Direction findDirectionTo(MapLocation dest) {
         int minCost = Integer.MAX_VALUE;
         Direction minCostDir = null;
-        for (Direction dir : getDiscreteDirection3(getTheta(dest))) {
+        for (Direction dir : getDiscreteDirection5(getTheta(dest))) {
             MapLocation there = self.getLocation().add(dir);
             if (!self.canSenseLocation(there))
+                continue;
+            // A wise bot should not repeat its mistake twice.
+            if (isInHistory(there) > 0)
                 continue;
             int costThere = getCostAt(there);
             if (costThere < minCost) {
@@ -292,7 +293,8 @@ public class PathFinding extends Globals {
         for (int i = 0; i < directions.length; i++)
             around[i] = getCostAt(self.getLocation().add(directions[i]));
         Arrays.sort(around);
-        defaultObstacleThreshold = around[1] + 16;
+        defaultObstacleThreshold = around[1] + 1;
+        self.setIndicatorString("threshold: " + defaultObstacleThreshold);
     }
 
     /**
@@ -302,9 +304,29 @@ public class PathFinding extends Globals {
      */
     static void updateObstacleThreshold(double theta) {
         int minCost = Integer.MAX_VALUE;
-        for (Direction dir : getDiscreteDirection5(theta))
-            minCost = Math.min(minCost, getCostAt(self.getLocation().add(dir)));
-        defaultObstacleThreshold = minCost + 1;
+        int maxCost = 0;
+        for (Direction dir : getDiscreteDirection5(theta)) {
+            int costThere = getCostAt(self.getLocation().add(dir));
+            if (costThere < Integer.MAX_VALUE) {
+                minCost = Math.min(minCost, costThere);
+                maxCost = Math.max(maxCost, costThere);
+            }
+        }
+        defaultObstacleThreshold = Math.max(minCost + 1, maxCost - 3);
+    }
+
+    /**
+     * Checks if the given location was visited recently.
+     *
+     * @param loc The location to be checked.
+     * @return The number of occurrence of the given location in the recently visited history.
+     */
+    static int isInHistory(MapLocation loc) {
+        int ret = 0;
+        for (MapLocation past : history)
+            if (loc.equals(past))
+                ret++;
+        return ret;
     }
 
     /**
@@ -315,17 +337,15 @@ public class PathFinding extends Globals {
      */
     static boolean notObstacle(Direction dir, int obstacleThreshold) {
         MapLocation there = self.getLocation().add(dir);
-        for (MapLocation past : history)
-            if (there.equals(past))
-                return true;
         return getCostAt(there) <= obstacleThreshold;
     }
 
-    static MapLocation[] history = new MapLocation[2];
+    static MapLocation[] history = new MapLocation[3];
     static int historyPtr = 0;
 
     /**
      * Adds a location to movement history.
+     *
      * @param loc The location to be added.
      */
     static void addToHistory(MapLocation loc) {
@@ -389,23 +409,22 @@ public class PathFinding extends Globals {
      * @param dest The target.
      */
     public static void moveToBug0(MapLocation dest) {
-        if (!dest.equals(self.getLocation())) {
+        MapLocation here = self.getLocation();
+        if (!dest.equals(here)) {
             updateObstacleThreshold(getTheta(dest));
-
-/*
+            // Path finding is a lie!
             Direction dir = findDirectionTo(dest);
-            if (dir != null && tryMove(dir)) {
-                addToHistory(self.getLocation());
+            if (dir != null) {
+                if (tryMove(dir))
+                    addToHistory(here);
                 return;
             }
-*/
         }
         moveToBug0(dest, defaultObstacleThreshold);
     }
 
     /**
      * Randomly wander.
-     *
      */
     public static void wander() {
         Direction dir = directions[rng.nextInt(directions.length)];
@@ -443,5 +462,25 @@ public class PathFinding extends Globals {
         Direction dir = candidates[rng.nextInt(candidates.length)];
         if (notObstacle(dir, defaultObstacleThreshold))
             tryMove(dir);
+    }
+
+    public static int getLocalAdvantage() {
+        int advantage = 0;
+        for (RobotInfo bot : self.senseNearbyRobots()) {
+            int multiplier = bot.getTeam().equals(us) ? 1 : -1;
+            switch (bot.getType()) {
+                case SOLDIER:
+                    advantage += multiplier;
+                    break;
+                case WATCHTOWER:
+                    advantage += 2 * multiplier;
+                    break;
+                case SAGE:
+                    advantage += 5 * multiplier;
+                    break;
+            }
+        }
+        // "不管怎么说，会战兵力是80万对60万，优势在我！"
+        return advantage;
     }
 }
