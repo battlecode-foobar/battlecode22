@@ -2,8 +2,6 @@ package foobar;
 
 import battlecode.common.*;
 
-import java.awt.*;
-
 public class TypeBuilder extends Globals {
     static int targetSharedArrayIndex = -1;
     static MapLocation targetLoc = null;
@@ -93,7 +91,7 @@ public class TypeBuilder extends Globals {
                 }
             } else{
                 self.setIndicatorString("Moving for target"+targetLoc);
-                PathFinding.moveToBug0(targetLoc);
+                PathFinding.moveTo(targetLoc);
             }
         }
 

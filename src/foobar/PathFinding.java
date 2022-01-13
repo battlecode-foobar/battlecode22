@@ -257,20 +257,21 @@ public class PathFinding extends Globals {
     /**
      * Returns the local-best direction to approach the dest from where the robot is in.
      *
-     * @param dest The destination.
+     * @param theta The destination angle.
      * @return A direction locally the best for the robot to move.
      */
-    public static Direction findDirectionTo(MapLocation dest) {
-        int minCost = Integer.MAX_VALUE;
+    public static Direction findDirectionTo(double theta) {
+        double minCost = Double.MAX_VALUE;
         Direction minCostDir = null;
-        for (Direction dir : getDiscreteDirection5(getTheta(dest))) {
+        for (Direction dir : getDiscreteDirection5(theta)) {
             MapLocation there = self.getLocation().add(dir);
             if (!self.canSenseLocation(there))
                 continue;
             // A wise bot should not repeat its mistake twice.
             if (isInHistory(there) > 0)
                 continue;
-            int costThere = getCostAt(there);
+            double step = self.getLocation().distanceSquaredTo(there);
+            double costThere = getCostAt(there) / step;
             if (costThere < minCost) {
                 minCost = costThere;
                 minCostDir = dir;
@@ -407,19 +408,19 @@ public class PathFinding extends Globals {
      *
      * @param dest The target.
      */
-    public static void moveToBug0(MapLocation dest) {
+    public static void moveTo(MapLocation dest) {
         MapLocation here = self.getLocation();
         if (!dest.equals(here)) {
             updateObstacleThreshold(getTheta(dest));
             // Path finding is a lie!
-            Direction dir = dest.distanceSquaredTo(here) <= 2 ? here.directionTo(dest) : findDirectionTo(dest);
+            Direction dir = dest.distanceSquaredTo(here) <= 2 ? here.directionTo(dest)
+                    : findDirectionTo(getTheta(dest));
             if (dir != null) {
                 if (tryMove(dir))
                     addToHistory(here);
-                return;
             }
         }
-        moveToBug0(dest, defaultObstacleThreshold);
+        // :w
     }
 
     /**
@@ -445,7 +446,7 @@ public class PathFinding extends Globals {
      * Spread out.
      */
     public static void spreadOut() {
-        updateObstacleThreshold();
+        // updateObstacleThreshold();
         MapLocation here = self.getLocation();
         RobotInfo[] botsAround = self.senseNearbyRobots();
         double x = 0, y = 0;
@@ -462,38 +463,36 @@ public class PathFinding extends Globals {
         if (notObstacle(dir, defaultObstacleThreshold))
             tryMove(dir);
     }
+
     /**
      * A wise general cuts losses, and regroup.
      *
      * @param radius The radius at which you want to start to retreat.
      */
     public static boolean tryRetreat(int radius, int confidence) {
-        updateObstacleThreshold();
         MapLocation here = self.getLocation();
-        RobotInfo[] botsAround = self.senseNearbyRobots(13,us);
-        for(RobotInfo bot: botsAround)
+        RobotInfo[] botsAround = self.senseNearbyRobots(13, us);
+        for (RobotInfo bot : botsAround)
             confidence += evaluatePower(bot);
         double x = 0, y = 0;
         boolean impendingDoom = false;
-        botsAround = self.senseNearbyRobots(radius,them);
-        for(RobotInfo bot: botsAround) {
-            MapLocation loc = bot.getLocation();
-            if(evaluatePower(bot) != 0)
+        botsAround = self.senseNearbyRobots(radius, them);
+        for (RobotInfo bot : botsAround) {
+            if (evaluatePower(bot) != 0) {
                 impendingDoom = true;
-            confidence -= evaluatePower(bot);
-            double denom = Math.sqrt(loc.distanceSquaredTo(here));
-            denom *= loc.distanceSquaredTo(here);
-            x -= (loc.x - here.x) / denom;
-            y -= (loc.y - here.y) / denom;
+                confidence -= evaluatePower(bot);
+                MapLocation loc = bot.getLocation();
+                double denom = Math.sqrt(loc.distanceSquaredTo(here));
+                denom *= loc.distanceSquaredTo(here);
+                x -= (loc.x - here.x) / denom;
+                y -= (loc.y - here.y) / denom;
+            }
         }
-        if(impendingDoom && confidence < 0) {
+        if (impendingDoom && confidence < 0) {
             // The sin is not in being outmatched, but in failing to recognize it.
-//            log("I retreat");
             double theta = Math.atan2(y, x);
-            Direction[] candidates = getDiscreteDirection5(theta);
-            Direction dir = candidates[rng.nextInt(candidates.length)].opposite();
-            if (notObstacle(dir, defaultObstacleThreshold))
-                tryMove(dir);
+            Direction dir = findDirectionTo(theta);
+            tryMove(dir);
             return true;
         }
         return false;

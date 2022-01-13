@@ -89,7 +89,7 @@ public strictfp class TypeArchon extends Globals {
             MapLocation target = Messaging.getArchonLocation(centralArchonIndex);
             int distanceToTarget = self.getLocation().distanceSquaredTo(target);
             if (distanceToTarget > 25)
-                PathFinding.moveToBug0(target);
+                PathFinding.moveTo(target);
             if (distanceToTarget <= 25 && self.canTransform())
                 self.transform();
         }
@@ -124,7 +124,7 @@ public strictfp class TypeArchon extends Globals {
             return false;
         if (self.getTeamLeadAmount(us) > 300)
             return true;
-        if (PathFinding.tryRetreat(34,-1))
+        if (PathFinding.tryRetreat(RobotType.ARCHON.visionRadiusSquared, -1))
             return false;
         if (self.readSharedArray(Messaging.BUILDWATCHTOWER_START) == 1)
             return false;

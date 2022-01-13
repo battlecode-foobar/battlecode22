@@ -108,18 +108,15 @@ public class Globals {
      *
      * @param bot the RobotInfo to be evaluated.
      */
-
     public static int evaluatePower(RobotInfo bot) {
-        int power = 0;
         switch (bot.getType()) {
             case SOLDIER:
-                power = 2;
-            case WATCHTOWER:
-                power = 4;
             case SAGE:
-                power = 2;
+                return 2;
+            case WATCHTOWER:
+                return 4;
         }
-        return power;
+        return 0;
     }
 
     public static class LeadMine{

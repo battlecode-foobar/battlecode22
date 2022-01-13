@@ -46,7 +46,7 @@ public strictfp class TypeMiner extends Globals {
             microAdjustTarget();
             self.setIndicatorString("moving to target " + targetLoc);
             Messaging.claimMine(targetLoc);
-            PathFinding.moveToBug0(targetLoc);
+            PathFinding.moveTo(targetLoc);
         } else {
             // PathFinding.spreadOut();
             self.setIndicatorString("wandering");
