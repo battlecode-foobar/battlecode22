@@ -23,6 +23,10 @@ public class TypeSoldier extends Globals {
         Messaging.reportAllMinesAround();
 
         findEnemyAndAttack();
+
+        // The sin is not in being outmatched, but in failing to recognize it.
+        PathFinding.tryRetreat(13,-1);
+
         if (!rusher) {
             supportFrontier();
         } else {

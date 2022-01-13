@@ -93,6 +93,29 @@ public class Globals {
             System.out.println(message);
     }
 
+    /**
+     * Evaluates the strength when it comes to fighting.
+     * Miner: 0
+     * Soldier: 3
+     * Watchtower: 6
+     * Sage: 6
+     *
+     * @param bot the RobotInfo to be evaluated.
+     */
+
+    public static int evaluatePower(RobotInfo bot) {
+        int power = 0;
+        switch (bot.getType()) {
+            case SOLDIER:
+                power = 2;
+            case WATCHTOWER:
+                power = 4;
+            case SAGE:
+                power = 2;
+        }
+        return power;
+    }
+
     public static class LeadMine{
         public static int leadAmount;
         public static int isTargeted;

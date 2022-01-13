@@ -3,7 +3,7 @@ package vulturebot;
 import battlecode.common.*;
 
 public class TypeSoldier extends Globals {
-    static final int RUSH_PATIENCE = 30;
+    static final int RUSH_PATIENCE = 13;
 
     static MapLocation assemblyTarget;
     public static MapLocation[] enemyArchons;

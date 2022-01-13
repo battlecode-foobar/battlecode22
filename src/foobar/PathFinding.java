@@ -1,9 +1,6 @@
 package foobar;
 
-import battlecode.common.Direction;
-import battlecode.common.GameActionException;
-import battlecode.common.MapLocation;
-import battlecode.common.RobotInfo;
+import battlecode.common.*;
 
 import java.util.*;
 
@@ -443,5 +440,39 @@ public class PathFinding extends Globals {
         Direction dir = candidates[rng.nextInt(candidates.length)];
         if (notObstacle(dir, defaultObstacleThreshold))
             tryMove(dir);
+    }
+    /**
+     * A wise general cuts losses, and regroup.
+     *
+     * @param radius The radius at which you want to start to retreat.
+     */
+    public static void tryRetreat(int radius, int confidence) {
+        updateObstacleThreshold();
+        MapLocation here = self.getLocation();
+        RobotInfo[] botsAround = self.senseNearbyRobots(13,us);
+        for(RobotInfo bot: botsAround)
+            confidence += evaluatePower(bot);
+        double x = 0, y = 0;
+        boolean impendingDoom = false;
+        botsAround = self.senseNearbyRobots(radius,them);
+        for(RobotInfo bot: botsAround) {
+            MapLocation loc = bot.getLocation();
+            if(evaluatePower(bot) != 0)
+                impendingDoom = true;
+            confidence -= evaluatePower(bot);
+            double denom = Math.sqrt(loc.distanceSquaredTo(here));
+            denom *= loc.distanceSquaredTo(here);
+            x -= (loc.x - here.x) / denom;
+            y -= (loc.y - here.y) / denom;
+        }
+        if(impendingDoom && confidence < 0) {
+            // The sin is not in being outmatched, but in failing to recognize it.
+//            log("I retreat");
+            double theta = Math.atan2(y, x);
+            Direction[] candidates = getDiscreteDirection5(theta);
+            Direction dir = candidates[rng.nextInt(candidates.length)].opposite();
+            if (notObstacle(dir, defaultObstacleThreshold))
+                tryMove(dir);
+        }
     }
 }

@@ -49,6 +49,8 @@ public strictfp class TypeMiner extends Globals {
         Messaging.reportAllMinesAround();
         Messaging.claimMine(self.getLocation());
         tryMineResources();
+        //This is no place for the weak, or foolhardy
+        PathFinding.tryRetreat(20,-3);
 
         if (targetLoc == null || !isTargetStillValid()) {
             targetLoc = searchForTarget();
