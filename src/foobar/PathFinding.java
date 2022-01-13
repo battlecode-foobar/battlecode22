@@ -492,7 +492,8 @@ public class PathFinding extends Globals {
             // The sin is not in being outmatched, but in failing to recognize it.
             double theta = Math.atan2(y, x);
             Direction dir = findDirectionTo(theta);
-            tryMove(dir);
+            if (dir != null)
+                tryMove(dir);
             return true;
         }
         return false;
