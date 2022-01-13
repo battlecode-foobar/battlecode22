@@ -495,7 +495,7 @@ public class PathFinding extends Globals {
                 y -= (loc.y - here.y) / denom;
             }
         }
-        self.setIndicatorString("retreating confidence " + confidence + " doom? " + impendingDoom);
+        // self.setIndicatorString("retreating confidence " + confidence + " doom? " + impendingDoom);
         if (impendingDoom && confidence < 0) {
             // The sin is not in being outmatched, but in failing to recognize it.
             double theta = Math.atan2(y, x);

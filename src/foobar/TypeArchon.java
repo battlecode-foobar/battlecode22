@@ -75,6 +75,7 @@ public strictfp class TypeArchon extends Globals {
         // self.setIndicatorString("lead " + self.getTeamLeadAmount(us));
 
         if (self.getMode().equals(RobotMode.TURRET)) {
+            self.setIndicatorString(""+ifMostDangerousdirectionClosestToFrontier());
             // OPTIMIZE: if multiple options are available, should have a tie-breaker of some sort.
             if (shouldBuildMiner())
                 tryBuildTowardsLowRubble(RobotType.MINER);
@@ -126,8 +127,8 @@ public strictfp class TypeArchon extends Globals {
             return true;
         if (PathFinding.tryRetreat(RobotType.ARCHON.visionRadiusSquared, -1))
             return false;
-        if (self.readSharedArray(Messaging.BUILDWATCHTOWER_START) == 1)
-            return false;
+        // if (watchtowerWaitingFund())
+        //     return false;
         return true;
     }
 
@@ -152,6 +153,8 @@ public strictfp class TypeArchon extends Globals {
      * @return Whether the archon should build a builder in this turn.
      */
     static boolean shouldBuildBuilder() {
+        // For debugging purposes
+        // return builderCount == 0;
         return false;
     }
 
@@ -183,7 +186,8 @@ public strictfp class TypeArchon extends Globals {
     static int senseRubbleSafe(Direction dir) {
         try {
             MapLocation loc = self.getLocation().add(dir);
-            return self.canSenseLocation(loc) ? self.senseRubble(loc) : Integer.MAX_VALUE;
+            return self.canSenseLocation(loc) && !self.canSenseRobotAtLocation(loc)
+                    ? self.senseRubble(loc) : Integer.MAX_VALUE;
         } catch (GameActionException e) {
             e.printStackTrace();
             return Integer.MAX_VALUE;
@@ -254,5 +258,38 @@ public strictfp class TypeArchon extends Globals {
             if (self.readSharedArray(index) % 8 == 7)
                 return true;
         return false;
+    }
+
+    // Keep try broadcasting diagonal positions of ourselves for a watchtower
+    static boolean BroadcastDiagonalPositionsForWatchtower() throws GameActionException{
+        for (Direction diagDir:diagonalDirections) {
+            MapLocation tentativeWatchtowerLoc = self.getLocation().add(diagDir);
+            if (!self.canSenseRobotAtLocation(tentativeWatchtowerLoc))
+            {
+                self.setIndicatorString("Broadcasting for Turret built@"+tentativeWatchtowerLoc);
+                return Messaging.tryBroadcastTargetWatchtowerLoc(tentativeWatchtowerLoc);
+            }
+        }
+        return false;
+    }
+
+    // Check whether this is the archon closest to frontier
+    // Returns CENTER if not closest (or no frontier) else direction
+    static Direction ifMostDangerousdirectionClosestToFrontier() throws GameActionException{
+        MapLocation frontier = Messaging.getMostImportantFrontier();
+        if (frontier == null)
+            return Direction.CENTER;
+        int minDistanceToFrontier = Integer.MAX_VALUE;
+        int minArchonIndexToFrontier = -1;
+        for (int archonIndex=0; archonIndex<self.getArchonCount(); archonIndex++){
+            int distToFrontier = Messaging.getArchonLocation(archonIndex).distanceSquaredTo(frontier);
+            if (distToFrontier < minDistanceToFrontier){
+                minDistanceToFrontier = distToFrontier;
+                minArchonIndexToFrontier = archonIndex;
+            }
+        }
+        if (minArchonIndexToFrontier == archonIndex)
+            return self.getLocation().directionTo(frontier);
+        return Direction.CENTER;
     }
 }
