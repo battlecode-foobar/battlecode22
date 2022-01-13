@@ -120,7 +120,7 @@ public strictfp class TypeArchon extends Globals {
             return false;
         if (Messaging.getClosestArchonTo(Messaging.MINER_START, Messaging.MINER_END, archonIndex) != archonIndex)
             return false;
-        if (Messaging.getTotalMinerCount() > 10 && rng.nextDouble() > 0.125)
+        if (Messaging.getTotalMinerCount() > 7 * initialArchonCount && rng.nextDouble() > 0.125)
             return false;
         if (self.getTeamLeadAmount(us) > 300)
             return true;
@@ -137,12 +137,13 @@ public strictfp class TypeArchon extends Globals {
      */
     @SuppressWarnings("RedundantIfStatement")
     static boolean shouldBuildSoldier() throws GameActionException {
-        if (!Messaging.hasCoordinateIn(Messaging.FRONTIER_START, Messaging.FRONTIER_END))
-            return false;
-        if (self.getTeamLeadAmount(us) > 300)
+        if (Messaging.hasCoordinateIn(Messaging.FRONTIER_START, Messaging.FRONTIER_END)) {
+            if (self.getTeamLeadAmount(us) > 300)
+                return true;
+            if (Messaging.getClosestArchonTo(Messaging.FRONTIER_START, Messaging.FRONTIER_END, archonIndex) != archonIndex)
+                return false;
             return true;
-        if (Messaging.getClosestArchonTo(Messaging.FRONTIER_START, Messaging.FRONTIER_END, archonIndex) != archonIndex)
-            return false;
+        }
         return true;
     }
 

@@ -21,9 +21,6 @@ public class TypeSoldier extends Globals {
         int minHealth = Integer.MAX_VALUE;
         RobotInfo enemy = null;
         for (RobotInfo candidate : enemies) {
-            if (candidate.getType().equals(RobotType.ARCHON)) {
-                PathFinding.moveTo(candidate.getLocation());
-            }
             if (candidate.getHealth() < minHealth) {
                 minHealth = candidate.getHealth();
                 enemy = candidate;
@@ -43,6 +40,12 @@ public class TypeSoldier extends Globals {
     }
 
     static void supportFrontier() throws GameActionException {
+        for (RobotInfo robot : self.senseNearbyRobots(-1, them)) {
+            if (robot.getType().equals(RobotType.ARCHON)) {
+                PathFinding.moveTo(robot.getLocation());
+                return;
+            }
+        }
         MapLocation frontier = Messaging.getMostImportantFrontier();
         if (frontier != null) {
             self.setIndicatorLine(self.getLocation(), frontier, 0, 255, 255);

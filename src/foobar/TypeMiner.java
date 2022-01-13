@@ -132,7 +132,6 @@ public strictfp class TypeMiner extends Globals {
             return false;
         if (self.getLocation().equals(targetLoc))
             return true;
-
         if (!self.getLocation().equals(targetLoc)) {
             return getNeighboringMinerCount(targetLoc) == 0;
         } else {
