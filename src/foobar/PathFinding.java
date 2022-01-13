@@ -168,7 +168,7 @@ public class PathFinding extends Globals {
         MapLocation here = self.getLocation();
         if (here.distanceSquaredTo(dest) > 9 || !self.canSenseLocation(dest))
             return null;
-        LocationMap memory = new LocationMap(9);
+        LocationMap memory = new LocationMap(self.getLocation(), 9);
         PathHeap open = new PathHeap(30);
         Path nothing = new Path(0, estimateCost(here, dest), self.getLocation(), null);
         open.add(nothing);
@@ -218,7 +218,6 @@ public class PathFinding extends Globals {
      * @return An array of three directions closest to theta.
      */
     static Direction[] getDiscreteDirection3(double theta) {
-        // 0.785398 is pi / 4
         int index = (int) Math.round(theta / 0.785398) + 4;
         return new Direction[]{
                 directionsCycle[index + 2],
@@ -413,7 +412,7 @@ public class PathFinding extends Globals {
         if (!dest.equals(here)) {
             updateObstacleThreshold(getTheta(dest));
             // Path finding is a lie!
-            Direction dir = findDirectionTo(dest);
+            Direction dir = dest.distanceSquaredTo(here) <= 2 ? here.directionTo(dest) : findDirectionTo(dest);
             if (dir != null) {
                 if (tryMove(dir))
                     addToHistory(here);

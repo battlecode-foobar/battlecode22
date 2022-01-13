@@ -2,6 +2,7 @@ package foobar;
 
 import battlecode.common.*;
 
+
 /**
  * Main controller logic for a Miner unit
  */
@@ -11,38 +12,16 @@ public strictfp class TypeMiner extends Globals {
      */
     static MapLocation targetLoc;
     /**
-     * The cached vision radius.
-     */
-    static int visionRadiusSq = 0;
-    /**
-     * The cached action radius.
-     */
-    static int actionRadiusSq = 0;
-
-    /**
      * A miner will not mine lead beneath this threshold
      */
-    static final int sustainableLeadThreshold = 1;
+    static final int SUSTAINABLE_LEAD_THRESHOLD = 1;
 
-    /**
-     * All directions relative to our current position where we can try look for metals and try mine.
-     */
-    static Direction[] canTryMine = {
-            Direction.CENTER,
-            Direction.NORTH,
-            Direction.NORTHEAST,
-            Direction.EAST,
-            Direction.SOUTHEAST,
-            Direction.SOUTH,
-            Direction.SOUTHWEST,
-            Direction.WEST,
-            Direction.NORTHWEST,
-    };
+    static double wanderTheta = 0;
+
 
     public static void step() throws GameActionException {
         if (firstRun()) {
-            visionRadiusSq = self.getType().visionRadiusSquared;
-            actionRadiusSq = self.getType().actionRadiusSquared;
+            wanderTheta = (2 * rng.nextDouble() - 1) * Math.PI;
         }
 
         Messaging.reportAllEnemiesAround();
@@ -54,6 +33,8 @@ public strictfp class TypeMiner extends Globals {
 
         if (targetLoc == null || !isTargetStillValid()) {
             targetLoc = searchForTarget();
+            if (targetLoc == null)
+                targetLoc = searchForWanderingTarget();
         } else {
             MapLocation newLoc = searchForTarget();
             MapLocation here = self.getLocation();
@@ -62,6 +43,7 @@ public strictfp class TypeMiner extends Globals {
         }
 
         if (targetLoc != null) {
+            microAdjustTarget();
             self.setIndicatorString("moving to target " + targetLoc);
             Messaging.claimMine(targetLoc);
             PathFinding.moveToBug0(targetLoc);
@@ -77,10 +59,6 @@ public strictfp class TypeMiner extends Globals {
         MapLocation minDisLoc = null;
         for (int i = Messaging.MINER_START; i < Messaging.MINER_END; i++) {
             int raw = self.readSharedArray(i);
-/*
-            if (raw == Messaging.IMPOSSIBLE_LOCATION || (raw & Messaging.MINE_CLAIM_MASK) != 0)
-                continue;
-*/
             if (raw == Messaging.IMPOSSIBLE_LOCATION)
                 continue;
             MapLocation there = Messaging.decodeLocation(raw);
@@ -90,6 +68,23 @@ public strictfp class TypeMiner extends Globals {
             }
         }
         return minDisLoc;
+    }
+
+    static MapLocation searchForWanderingTarget() throws GameActionException {
+        final int RADIUS = 9;
+        MapLocation here = self.getLocation();
+        while (true) {
+            double theta = (2 * rng.nextDouble() - 1) * Math.PI;
+            MapLocation newLoc = new MapLocation(
+                    here.x + (int)Math.round(RADIUS * Math.cos(theta)),
+                    here.y + (int)Math.round(RADIUS * Math.sin(theta))
+            );
+            if (newLoc.x < 0 || newLoc.y < 0)
+                continue;
+            if (newLoc.x >= self.getMapWidth() || newLoc.y >= self.getMapHeight())
+                continue;
+            return newLoc;
+        }
     }
 
     static int getNeighboringMinerCount(MapLocation loc) throws GameActionException {
@@ -110,30 +105,38 @@ public strictfp class TypeMiner extends Globals {
         return count;
     }
 
-    static boolean isTargetStillValid() throws GameActionException {
-        if (!self.canSenseLocation(targetLoc)) {
-/*
-            for (int i = Messaging.MINER_START; i < Messaging.MINER_END; i++) {
-                int raw = self.readSharedArray(i);
-                if (raw == Messaging.IMPOSSIBLE_LOCATION)
-                    continue;
-                MapLocation loc = Messaging.decodeLocation(raw);
-                if (loc.distanceSquaredTo(targetLoc) <= Messaging.MINE_PROXIMITY)
-                    return true;
-                    // return (raw & Messaging.MINE_CLAIM_MASK) == 0;
+    static void microAdjustTarget() throws GameActionException {
+        if (targetLoc == null || self.getLocation().distanceSquaredTo(targetLoc) > 9)
+            return;
+        int maxMinesAround = self.senseNearbyLocationsWithLead(targetLoc, 2).length;
+        MapLocation newLoc = targetLoc;
+        if (maxMinesAround == 8)
+            return;
+        for (Direction dir : directions) {
+            MapLocation there = targetLoc.add(dir);
+            if (!self.canSenseLocation(there))
+                return;
+            int minesAround = self.senseNearbyLocationsWithLead(there, 2).length;
+            if (maxMinesAround < minesAround) {
+                maxMinesAround = minesAround;
+                newLoc = there;
             }
-            return false;
-*/
-            return true;
         }
+        targetLoc = newLoc;
+    }
 
+    static boolean isTargetStillValid() throws GameActionException {
+        if (!self.canSenseLocation(targetLoc))
+            return true;
         if (self.senseLead(targetLoc) == 0)
             return false;
+        if (self.getLocation().equals(targetLoc))
+            return true;
 
         if (!self.getLocation().equals(targetLoc)) {
             return getNeighboringMinerCount(targetLoc) == 0;
         } else {
-            RobotInfo[] neighborBots = self.senseNearbyRobots(actionRadiusSq, us);
+            RobotInfo[] neighborBots = self.senseNearbyRobots(self.getType().visionRadiusSquared, us);
             int numMiners = 0;
             for (RobotInfo bot : neighborBots)
                 if (bot.getType().equals(RobotType.MINER) && bot.getTeam().equals(us))
@@ -162,13 +165,13 @@ public strictfp class TypeMiner extends Globals {
 
     static void tryMineResources() throws GameActionException {
         // Try to mine on squares around us.
-        for (Direction dir : canTryMine) {
+        for (Direction dir : directionsWithMe) {
             MapLocation mineLocation = self.getLocation().add(dir);
             // Notice that the Miner's action cool down is very low.
             // You can mine multiple times per turn!
             while (self.canMineGold(mineLocation))
                 self.mineGold(mineLocation);
-            while (self.canMineLead(mineLocation) && self.senseLead(mineLocation) > sustainableLeadThreshold) {
+            while (self.canMineLead(mineLocation) && self.senseLead(mineLocation) > SUSTAINABLE_LEAD_THRESHOLD) {
                 self.mineLead(mineLocation);
             }
         }
