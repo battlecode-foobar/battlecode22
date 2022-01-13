@@ -342,7 +342,7 @@ public class Messaging extends Globals {
         int iter = 0;
         while (iter < 5) {
             MapLocation loc = candidates[rng.nextInt(candidates.length)];
-            if (self.senseLead(loc) > TypeMiner.sustainableLeadThreshold) {
+            if (self.senseLead(loc) > TypeMiner.SUSTAINABLE_LEAD_THRESHOLD) {
                 tryAddLocationInRange(MINER_START, MINER_END, loc, MINE_PROXIMITY, false);
                 break;
             }
