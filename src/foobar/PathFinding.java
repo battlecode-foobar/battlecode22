@@ -468,7 +468,7 @@ public class PathFinding extends Globals {
      *
      * @param radius The radius at which you want to start to retreat.
      */
-    public static void tryRetreat(int radius, int confidence) {
+    public static boolean tryRetreat(int radius, int confidence) {
         updateObstacleThreshold();
         MapLocation here = self.getLocation();
         RobotInfo[] botsAround = self.senseNearbyRobots(13,us);
@@ -495,6 +495,8 @@ public class PathFinding extends Globals {
             Direction dir = candidates[rng.nextInt(candidates.length)].opposite();
             if (notObstacle(dir, defaultObstacleThreshold))
                 tryMove(dir);
+            return true;
         }
+        return false;
     }
 }

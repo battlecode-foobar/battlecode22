@@ -121,7 +121,7 @@ public strictfp class TypeArchon extends Globals {
             return false;
         if (Messaging.getTotalMinerCount() > 10 && rng.nextDouble() > 0.125)
             return false;
-        if (PathFinding.getLocalAdvantage() < 0)
+        if (PathFinding.tryRetreat(34,-1))
             return false;
         if (self.readSharedArray(Messaging.BUILDWATCHTOWER_START) == 1)
             return false;
