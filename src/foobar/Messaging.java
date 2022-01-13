@@ -436,8 +436,13 @@ public class Messaging extends Globals {
         return minDisArchon;
     }
 
-    public static MapLocation getMostImportantFrontier() throws GameActionException {
-        MapLocation here = self.getLocation();
+    /**
+     * Returns the most important frontier relative to Location "here"
+     * @param location
+     * @return
+     * @throws GameActionException
+     */
+    public static MapLocation getMostImportantFrontier(MapLocation here) throws GameActionException {
         int minDis = Integer.MAX_VALUE;
         MapLocation minDisLoc = null;
         for (int i = FRONTIER_START; i < FRONTIER_END; i++) {
@@ -466,5 +471,9 @@ public class Messaging extends Globals {
             }
         }
         return minDisLoc;
+    }
+
+    public static MapLocation getMostImportantFrontier() throws GameActionException{
+        return getMostImportantFrontier(self.getLocation());
     }
 }

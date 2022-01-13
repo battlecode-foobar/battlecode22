@@ -37,6 +37,8 @@ public strictfp class TypeArchon extends Globals {
      */
     static int centralArchonIndex;
 
+    static Direction enemyDirection = Direction.CENTER;
+
 
     public static void init() throws GameActionException {
         inNegotiation = self.getArchonCount() > 1;
@@ -75,7 +77,12 @@ public strictfp class TypeArchon extends Globals {
         // self.setIndicatorString("lead " + self.getTeamLeadAmount(us));
 
         if (self.getMode().equals(RobotMode.TURRET)) {
-            self.setIndicatorString(""+ifMostDangerousdirectionClosestToFrontier());
+            // enemyDirection is defaultly center; else when frontier occurs update for the archon closest to it.
+            updateProximalEnemyDirection();
+            self.setIndicatorString(""+enemyDirection);
+            if (shouldBuildWatchtower()){
+                scheduleWatchtower();
+            }
             // OPTIMIZE: if multiple options are available, should have a tie-breaker of some sort.
             if (shouldBuildMiner())
                 tryBuildTowardsLowRubble(RobotType.MINER);
@@ -127,8 +134,8 @@ public strictfp class TypeArchon extends Globals {
             return true;
         if (PathFinding.tryRetreat(RobotType.ARCHON.visionRadiusSquared, -1))
             return false;
-        // if (watchtowerWaitingFund())
-        //     return false;
+        if (watchtowerWaitingFund())
+            return false;
         return true;
     }
 
@@ -139,6 +146,8 @@ public strictfp class TypeArchon extends Globals {
     @SuppressWarnings("RedundantIfStatement")
     static boolean shouldBuildSoldier() throws GameActionException {
         if (Messaging.hasCoordinateIn(Messaging.FRONTIER_START, Messaging.FRONTIER_END)) {
+            if (watchtowerWaitingFund())
+                return false;
             if (self.getTeamLeadAmount(us) > 300)
                 return true;
             if (Messaging.getClosestArchonTo(Messaging.FRONTIER_START, Messaging.FRONTIER_END, archonIndex) != archonIndex)
@@ -153,9 +162,20 @@ public strictfp class TypeArchon extends Globals {
      * @return Whether the archon should build a builder in this turn.
      */
     static boolean shouldBuildBuilder() {
-        // For debugging purposes
-        // return builderCount == 0;
-        return false;
+        // Build a builder when we are ready to build a watchtower and there is no builder
+        return builderCount == 0 && shouldBuildWatchtower();
+    }
+
+    static boolean shouldBuildWatchtower() {
+        return (enemyDirection != Direction.CENTER && self.getTeamLeadAmount(us) > 300);
+    }
+
+    static void scheduleWatchtower() throws GameActionException{
+        if (enemyDirection == Direction.CENTER)
+            return;
+        MapLocation tentativeWatchtowerLoc = self.getLocation().add(enemyDirection);
+        if (!self.canSenseRobotAtLocation(tentativeWatchtowerLoc))
+            Messaging.tryBroadcastTargetWatchtowerLoc(tentativeWatchtowerLoc);
     }
 
     /**
@@ -275,21 +295,30 @@ public strictfp class TypeArchon extends Globals {
 
     // Check whether this is the archon closest to frontier
     // Returns CENTER if not closest (or no frontier) else direction
-    static Direction ifMostDangerousdirectionClosestToFrontier() throws GameActionException{
-        MapLocation frontier = Messaging.getMostImportantFrontier();
-        if (frontier == null)
-            return Direction.CENTER;
+    // This provides a first (often accurate) estimate of where the enemy is relative to this archon
+    static Direction updateProximalEnemyDirection() throws GameActionException{
         int minDistanceToFrontier = Integer.MAX_VALUE;
-        int minArchonIndexToFrontier = -1;
+        int minArchonIndex = -1;
+        Direction closestArchonDirToFrontier = Direction.CENTER;
         for (int archonIndex=0; archonIndex<self.getArchonCount(); archonIndex++){
-            int distToFrontier = Messaging.getArchonLocation(archonIndex).distanceSquaredTo(frontier);
+            MapLocation archonLoc = Messaging.getArchonLocation(archonIndex);
+            MapLocation relativeFrontierLoc = Messaging.getMostImportantFrontier(archonLoc);
+            int distToFrontier = Integer.MAX_VALUE;
+            if (relativeFrontierLoc != null)
+                distToFrontier = archonLoc.distanceSquaredTo(relativeFrontierLoc);
             if (distToFrontier < minDistanceToFrontier){
                 minDistanceToFrontier = distToFrontier;
-                minArchonIndexToFrontier = archonIndex;
+                minArchonIndex = archonIndex;
+                closestArchonDirToFrontier = archonLoc.directionTo(relativeFrontierLoc);
             }
         }
-        if (minArchonIndexToFrontier == archonIndex)
-            return self.getLocation().directionTo(frontier);
+        if (minArchonIndex == archonIndex) {
+            // Provide a first estimate of where the enemy is;
+            // if (enemyDirection == Direction.CENTER)
+            if (closestArchonDirToFrontier != Direction.CENTER)
+                enemyDirection = closestArchonDirToFrontier;
+            return closestArchonDirToFrontier;
+        }
         return Direction.CENTER;
     }
 }
