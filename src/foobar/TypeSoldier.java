@@ -14,7 +14,8 @@ public class TypeSoldier extends Globals {
     public static void step() throws GameActionException {
         if (firstRun()) {
             // RUSH_PATIENCE = us.equals(Team.A) ? 400 : 500;
-            rusher = Messaging.getTotalSoldierCount() < RUSH_PATIENCE;
+            /// rusher = Messaging.getTotalSoldierCount() < RUSH_PATIENCE;
+            rusher = false;
             chasingEnemy = false;
             calculateEnemyArchons();
         }

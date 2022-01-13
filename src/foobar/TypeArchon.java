@@ -10,7 +10,7 @@ import java.util.Comparator;
  * Main controller logic for an Archon unit.
  */
 public strictfp class TypeArchon extends Globals {
-    static final int STARTUP_MINER_THRESHOLD = 15;
+    static final int STARTUP_MINER_THRESHOLD = 10;
     /**
      * If we are in negotiation right now.
      */
@@ -32,6 +32,10 @@ public strictfp class TypeArchon extends Globals {
      * Number of builders built.
      */
     static int builderCount;
+    /**
+     * The index of the central archon.
+     */
+    static int centralArchonIndex;
 
 
     public static void init() throws GameActionException {
@@ -48,138 +52,103 @@ public strictfp class TypeArchon extends Globals {
     public static void step() throws GameActionException {
         if (firstRun())
             init();
-        if (turnCount > initialArchonCount)
-            TypeSoldier.calculateEnemyArchons();
-
         if (inNegotiation)
             negotiate();
+        if (turnCount == initialArchonCount + 1)
+            centralArchonIndex = computeCentralArchon();
+        // Write global turn count.
         self.writeSharedArray(0, turnCount);
-
         if (rng.nextDouble() <= 1.0 / self.getArchonCount()) {
+            // Memory mechanism. Average lifetime of frontier message = frontier region length / constant below.
             for (int i = 0; i < 2; i++) {
                 int index = Messaging.FRONTIER_START + rng.nextInt(Messaging.FRONTIER_END - Messaging.FRONTIER_START);
                 self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
             }
-/*
-            for (int i = 0; i < 6; i++) {
-                int index = Messaging.MINER_START + rng.nextInt(Messaging.MINER_END - Messaging.MINER_START);
-                self.writeSharedArray(index, self.readSharedArray(index) & Messaging.MINE_UNCLAIM_MASK);
-            }
-*/
         }
 
         Messaging.reportAllEnemiesAround();
         Messaging.reportAllMinesAround();
 
-        int minSoldierCount = Integer.MAX_VALUE;
-        int minMinerCount = Integer.MAX_VALUE;
-        for (int i = 0; i < initialArchonCount; i++) {
-            minSoldierCount = Math.min(minSoldierCount, Messaging.getArchonSoldierCount(i));
-            minMinerCount = Math.min(minMinerCount, Messaging.getArchonMinerCount(i));
-        }
-
-
-        int maxSoldierCount = 0;
-        int maxSoldierCountArchon = 0;
-        for (int i = 0; i < initialArchonCount; i++) {
-            int thisSoldierCount = Messaging.getArchonSoldierCount(i);
-            if (thisSoldierCount > maxSoldierCount) {
-                maxSoldierCount = thisSoldierCount;
-                maxSoldierCountArchon = i;
-            }
-        }
-
-        self.setIndicatorString("lead " + self.getTeamLeadAmount(us));
+        // self.setIndicatorString("lead " + self.getTeamLeadAmount(us));
 
         if (self.getMode().equals(RobotMode.TURRET)) {
-            // Build miners to start.
-            if (turnCount <= 4 && minerCount < 2) {
+            // OPTIMIZE: if multiple options are available, should have a tie-breaker of some sort.
+            if (shouldBuildMiner())
                 tryBuildTowardsLowRubble(RobotType.MINER);
-/*
-            } else if (soldierCount < 5) {
+            else if (shouldBuildSoldier())
                 tryBuildTowardsLowRubble(RobotType.SOLDIER);
-            } else if (builderCount < 0) {
+            else if (shouldBuildBuilder())
                 tryBuildTowardsLowRubble(RobotType.BUILDER);
-            } else if (minerCount < soldierCount * 5 / 10 && self.getTeamLeadAmount(us) < 5000) {
-                tryBuildTowardsLowRubble(RobotType.MINER);
-            } else if (builderCount < soldierCount / 30) {
-                tryBuildTowardsLowRubble(RobotType.BUILDER);
-*/
-            } else {
-                boolean hasUnclaimedMine = Messaging.hasCoordinateIn(Messaging.MINER_START, Messaging.MINER_END);
-                boolean hasFrontiers = Messaging.hasCoordinateIn(Messaging.FRONTIER_START, Messaging.FRONTIER_END);
-
-                boolean bestForMeToBuildMiner = true;
-                if (hasUnclaimedMine) {
-                    // If we have unclaimed mines, build miners to claim it only when we are closest to the mines.
-                    bestForMeToBuildMiner = Messaging
-                            .getClosestArchonTo(Messaging.MINER_START, Messaging.MINER_END, archonIndex) == archonIndex;
-                }
-                // But of course if we have surplus we don't mind building more miners.
-                bestForMeToBuildMiner |= self.getTeamLeadAmount(us) > 300;
-
-                boolean shouldBuildMiner = hasUnclaimedMine && bestForMeToBuildMiner;
-                // We should definitely build more miners, but later we should focus less on building miners.
-                shouldBuildMiner &= Messaging.getTotalMinerCount() <= STARTUP_MINER_THRESHOLD
-                        || rng.nextDouble() < 0.125;
-                shouldBuildMiner &= self.senseNearbyRobots(100, them).length == 0;
-
-                if (shouldBuildMiner) {
-                    tryBuildTowardsLowRubble(RobotType.MINER);
-                } else {
-                    boolean bestForMeToBuildSoldier;
-                    if ((!hasFrontiers || rng.nextDouble() < 0.5) && turnCount > initialArchonCount) {
-                        // If we have no frontiers, or with one half chance, we can try follow the schedule of a rush
-                        // and build soldiers at the closest archon.
-                        int idx = 0;
-                        while (idx < initialArchonCount - 1 && Messaging.isEnemyArchonDead(TypeSoldier.enemyArchons[idx]))
-                            idx++;
-                        bestForMeToBuildSoldier = Messaging.getClosestArchonTo(TypeSoldier.enemyArchons[idx]) == archonIndex;
-                    } else {
-                        // Otherwise, we build soldiers at the archon closest to the frontier.
-                        bestForMeToBuildSoldier = Messaging
-                                .getClosestArchonTo(Messaging.FRONTIER_START, Messaging.FRONTIER_END, archonIndex) == archonIndex;
-                    }
-                    // But of course if we have surplus we don't mind building more soldiers.
-                    bestForMeToBuildSoldier |= self.getTeamLeadAmount(us) > 300;
-
-                    if (bestForMeToBuildSoldier)
-                        tryBuildTowardsLowRubble(RobotType.SOLDIER);
-                }
-            }
-            if (turnCount > initialArchonCount)
+            if (isAllNegotiationsComplete())
                 self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.AVAILABILITY, turnCount);
-
-/*
-            if (self.senseNearbyRobots(self.getLocation(), self.getType().visionRadiusSquared, them).length > 0) {
-                MapLocation target = Messaging.getArchonLocation(maxSoldierCountArchon);
-                int distanceToTarget = self.getLocation().distanceSquaredTo(target);
-                if (distanceToTarget > 10 && self.canTransform())
-                    self.transform();
-            }
-*/
         } else if (self.getMode().equals(RobotMode.PORTABLE)) {
             // System.out.println("Max soldiers: " + maxSoldierCount + " archon: " + maxSoldierCountArchon);
-            MapLocation target = Messaging.getArchonLocation(maxSoldierCountArchon);
+            MapLocation target = Messaging.getArchonLocation(centralArchonIndex);
             int distanceToTarget = self.getLocation().distanceSquaredTo(target);
-            if (distanceToTarget > 10)
+            if (distanceToTarget > 25)
                 PathFinding.moveToBug0(target);
-            if (distanceToTarget <= 10 && self.canTransform())
+            if (distanceToTarget <= 25 && self.canTransform())
                 self.transform();
         }
-
-/*
-        MapLocation here = self.getLocation();
-        int left = Clock.getBytecodesLeft();
-        PathFindingGenerated.findPath(new MapLocation(here.x + 2, here.y + 2));
-        System.out.println("path finding took " + (left - Clock.getBytecodesLeft()));
-*/
-
-        if (turnCount > initialArchonCount) {
+        if (isAllNegotiationsComplete()) {
             Messaging.writeSharedLocation(Messaging.getArchonOffset(archonIndex), self.getLocation());
             self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.SOLDIER_COUNT, soldierCount);
             self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.MINER_COUNT, minerCount);
         }
+    }
+
+    /**
+     * Checks if all archons have completed negotiation.
+     * @return Whether all archons have completed negotiation.
+     */
+    public static boolean isAllNegotiationsComplete() {
+        return turnCount > initialArchonCount;
+    }
+
+    /**
+     * Checks if I should build miners.
+     * @return Whether the archon should build a miner in this turn.
+     */
+    @SuppressWarnings("RedundantIfStatement")
+    static boolean shouldBuildMiner() throws GameActionException {
+        if (turnCount < 4 && minerCount < 3)
+            return true;
+        if (!Messaging.hasCoordinateIn(Messaging.MINER_START, Messaging.MINER_END))
+            return false;
+        if (self.getTeamLeadAmount(us) > 300)
+            return true;
+        if (Messaging.getClosestArchonTo(Messaging.MINER_START, Messaging.MINER_END, archonIndex) != archonIndex)
+            return false;
+        if (Messaging.getTotalMinerCount() > 10 && rng.nextDouble() > 0.125)
+            return false;
+        if (PathFinding.getLocalAdvantage() < 0)
+            return false;
+        if (self.readSharedArray(Messaging.BUILDWATCHTOWER_START) == 1)
+            return false;
+        return true;
+    }
+
+    /**
+     * Checks if I should build soldiers.
+     * @return Whether the archon should build a soldier in this turn.
+     */
+    @SuppressWarnings("RedundantIfStatement")
+    static boolean shouldBuildSoldier() throws GameActionException {
+        if (!Messaging.hasCoordinateIn(Messaging.FRONTIER_START, Messaging.FRONTIER_END))
+            return false;
+        if (self.getTeamLeadAmount(us) > 300)
+            return true;
+        if (Messaging.getClosestArchonTo(Messaging.FRONTIER_START, Messaging.FRONTIER_END, archonIndex) != archonIndex)
+            return false;
+        return true;
+    }
+
+    /**
+     * Checks if I should build builders.
+     * @return Whether the archon should build a builder in this turn.
+     */
+    static boolean shouldBuildBuilder() {
+        return false;
     }
 
     /**
@@ -198,24 +167,6 @@ public strictfp class TypeArchon extends Globals {
             }
         }
         self.writeSharedArray(turnCount + 1, self.getID());
-    }
-
-    /**
-     * To be called by other type of droids and queries who built itself.
-     *
-     * @return The archon index of the archon that built the droid.
-     * @throws GameActionException Actually doesn't throw.
-     */
-    public static int whoBuiltMe() throws GameActionException {
-        MapLocation here = self.getLocation();
-        for (int i = 0; i < self.getArchonCount(); i++) {
-            MapLocation thisArchon = Messaging.readSharedLocation(self.readSharedArray(Messaging.getArchonOffset(i)));
-            if (thisArchon.isAdjacentTo(here)) {
-                return i;
-            }
-        }
-        // Should be unreachable;
-        return 0;
     }
 
     /**
@@ -261,5 +212,29 @@ public strictfp class TypeArchon extends Globals {
                 break;
             }
         }
+    }
+
+    /**
+     * Compute and select a central archon for other archons to flee to.
+     * @return The archon index of the described archon.
+     * @throws GameActionException Actually doesn't throw.
+     */
+    static int computeCentralArchon() throws GameActionException {
+        int minDis = Integer.MAX_VALUE;
+        int minDisArchon = archonIndex;
+        for (int i = 0; i < initialArchonCount; i++) {
+            int maxDis = 0;
+            MapLocation loc = Messaging.getArchonLocation(i);
+            for (int j = 0; j < initialArchonCount; j++) {
+                if (i == j)
+                    continue;
+                maxDis = Math.max(maxDis, Messaging.getArchonLocation(j).distanceSquaredTo(loc));
+            }
+            if (minDis > maxDis) {
+                minDis = maxDis;
+                minDisArchon = i;
+            }
+        }
+        return minDisArchon;
     }
 }

@@ -36,6 +36,12 @@ public class Globals {
             Direction.WEST,
             Direction.NORTHWEST,
     };
+    public static final Direction[] diagonalDirections = {
+            Direction.NORTHEAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTHWEST,
+            Direction.NORTHWEST,
+    };
 
     /**
      * An array of directions with center included.

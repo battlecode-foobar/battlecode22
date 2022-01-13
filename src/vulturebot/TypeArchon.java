@@ -60,10 +60,12 @@ public strictfp class TypeArchon extends Globals {
                 int index = Messaging.FRONTIER_START + rng.nextInt(Messaging.FRONTIER_END - Messaging.FRONTIER_START);
                 self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
             }
+/*
             for (int i = 0; i < 6; i++) {
                 int index = Messaging.MINER_START + rng.nextInt(Messaging.MINER_END - Messaging.MINER_START);
                 self.writeSharedArray(index, self.readSharedArray(index) & Messaging.MINE_UNCLAIM_MASK);
             }
+*/
         }
 
         Messaging.reportAllEnemiesAround();
@@ -119,7 +121,7 @@ public strictfp class TypeArchon extends Globals {
                 boolean shouldBuildMiner = hasUnclaimedMine && bestForMeToBuildMiner;
                 // We should definitely build more miners, but later we should focus less on building miners.
                 shouldBuildMiner &= Messaging.getTotalMinerCount() <= STARTUP_MINER_THRESHOLD
-                        || rng.nextDouble() < 0.15;
+                        || rng.nextDouble() < 0.125;
                 shouldBuildMiner &= self.senseNearbyRobots(100, them).length == 0;
 
                 if (shouldBuildMiner) {
@@ -259,5 +261,24 @@ public strictfp class TypeArchon extends Globals {
                 break;
             }
         }
+    }
+
+    static int computeCentralArchon() throws GameActionException {
+        int minDis = Integer.MAX_VALUE;
+        int minDisArchon = archonIndex;
+        for (int i = 0; i < initialArchonCount; i++) {
+            int maxDis = 0;
+            MapLocation loc = Messaging.getArchonLocation(i);
+            for (int j = 0; j < initialArchonCount; j++) {
+                if (i == j)
+                    continue;
+                maxDis = Math.max(maxDis, Messaging.getArchonLocation(j).distanceSquaredTo(loc));
+            }
+            if (minDis > maxDis) {
+                minDis = maxDis;
+                minDisArchon = i;
+            }
+        }
+        return minDisArchon;
     }
 }
