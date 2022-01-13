@@ -58,7 +58,6 @@ public class TypeBuilder extends Globals {
             // If we have a target
             // if we are at target
             if (here.distanceSquaredTo(targetLoc)<= 2) {
-                reserveWatchtowerBudget();
                 self.setIndicatorString("I'm near target"+targetLoc+self.getActionCooldownTurns());
                 if (self.canBuildRobot(RobotType.WATCHTOWER, here.directionTo(targetLoc))) {
                     self.setIndicatorString("Can build towards"+here.directionTo(targetLoc)+targetLoc);
@@ -72,14 +71,11 @@ public class TypeBuilder extends Globals {
                             self.repair(targetLoc);
                     }
                     else {
-                        cancelWatchtowerBudget();
                         PathFinding.wander();
-                        searchForTarget();
                         return;
                     }
             }
             else{
-                cancelWatchtowerBudget();
                 self.setIndicatorString("Moving for target"+targetLoc);
                 PathFinding.moveToBug0(targetLoc);
             }
