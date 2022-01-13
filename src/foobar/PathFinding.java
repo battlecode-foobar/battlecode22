@@ -10,6 +10,8 @@ import java.util.*;
 public class PathFinding extends Globals {
     static int defaultObstacleThreshold = 3;
 
+    final static int INFINITY = 0xFFFF;
+
     /**
      * A path.
      */
@@ -137,11 +139,11 @@ public class PathFinding extends Globals {
      */
     static int getCostAt(MapLocation loc) {
         if (!self.canSenseLocation(loc) || self.canSenseRobotAtLocation(loc))
-            return Integer.MAX_VALUE; // A very high value to deter the planner.
+            return INFINITY; // A very high value to deter the planner.
         try {
             return 1 + self.senseRubble(loc) / 10;
         } catch (GameActionException e) {
-            return Integer.MAX_VALUE;
+            return INFINITY;
         }
     }
 
@@ -261,23 +263,28 @@ public class PathFinding extends Globals {
      * @return A direction locally the best for the robot to move.
      */
     public static Direction findDirectionTo(double theta) {
-        double minCost = Double.MAX_VALUE;
+        int minCost = INFINITY;
         Direction minCostDir = null;
+        MapLocation here = self.getLocation();
         for (Direction dir : getDiscreteDirection5(theta)) {
-            MapLocation there = self.getLocation().add(dir);
+            MapLocation there = here.add(dir);
             if (!self.canSenseLocation(there))
                 continue;
             // A wise bot should not repeat its mistake twice.
             if (isInHistory(there) > 0)
                 continue;
-            double step = self.getLocation().distanceSquaredTo(there);
-            double costThere = getCostAt(there) / step;
+            int multiplier = 2;
+            if (here.distanceSquaredTo(there) == 2
+                    && Math.cos(theta) * dir.getDeltaX() + Math.sin(theta) * dir.getDeltaY() > 1.01) {
+                multiplier = 1;
+            }
+            int costThere = multiplier * getCostAt(there);
             if (costThere < minCost) {
                 minCost = costThere;
                 minCostDir = dir;
             }
         }
-        if (minCost == Integer.MAX_VALUE)
+        if (minCost == INFINITY)
             return null;
         return minCostDir;
     }
@@ -303,11 +310,11 @@ public class PathFinding extends Globals {
      * @param theta A reference direction.
      */
     static void updateObstacleThreshold(double theta) {
-        int minCost = Integer.MAX_VALUE;
+        int minCost = INFINITY;
         int maxCost = 0;
         for (Direction dir : getDiscreteDirection5(theta)) {
             int costThere = getCostAt(self.getLocation().add(dir));
-            if (costThere < Integer.MAX_VALUE) {
+            if (costThere < INFINITY) {
                 minCost = Math.min(minCost, costThere);
                 maxCost = Math.max(maxCost, costThere);
             }
@@ -488,6 +495,7 @@ public class PathFinding extends Globals {
                 y -= (loc.y - here.y) / denom;
             }
         }
+        self.setIndicatorString("retreating confidence " + confidence + " doom? " + impendingDoom);
         if (impendingDoom && confidence < 0) {
             // The sin is not in being outmatched, but in failing to recognize it.
             double theta = Math.atan2(y, x);
