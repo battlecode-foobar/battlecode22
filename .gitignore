@@ -35,3 +35,4 @@ battlecode-scaffold.iws
 
 # Local scripts used to set the correct JDK path
 setjava.bat
+gradle.properties
