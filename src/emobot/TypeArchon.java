@@ -1,9 +1,6 @@
 package emobot;
 
 import battlecode.common.*;
-import foobar.Globals;
-import foobar.Messaging;
-import foobar.PathFinding;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -44,14 +41,14 @@ public strictfp class TypeArchon extends Globals {
     public static void init() throws GameActionException {
         inNegotiation = self.getArchonCount() > 1;
         if (!inNegotiation)
-            foobar.Messaging.writeSharedLocation(foobar.Messaging.getArchonOffset(0), self.getLocation());
+            Messaging.writeSharedLocation(Messaging.getArchonOffset(0), self.getLocation());
         minerCount = 0;
         soldierCount = 0;
         builderCount = 0;
-        for (int i = foobar.Messaging.DEAD_ARCHON_START; i < foobar.Messaging.MINER_END; i++)
-            self.writeSharedArray(i, foobar.Messaging.IMPOSSIBLE_LOCATION);
+        for (int i = Messaging.DEAD_ARCHON_START; i < Messaging.MINER_END; i++)
+            self.writeSharedArray(i, Messaging.IMPOSSIBLE_LOCATION);
         // Clear the watchtower indices
-        for (int i = foobar.Messaging.BUILDWATCHTOWER_START; i< foobar.Messaging.BUILDWATCHTOWER_END; i++)
+        for (int i=Messaging.BUILDWATCHTOWER_START; i<Messaging.BUILDWATCHTOWER_END; i++)
             self.writeSharedArray(i, 0);
     }
 
@@ -67,13 +64,13 @@ public strictfp class TypeArchon extends Globals {
         if (rng.nextDouble() <= 1.0 / self.getArchonCount()) {
             // Memory mechanism. Average lifetime of frontier message = frontier region length / constant below.
             for (int i = 0; i < 2; i++) {
-                int index = foobar.Messaging.FRONTIER_START + rng.nextInt(foobar.Messaging.FRONTIER_END - foobar.Messaging.FRONTIER_START);
-                self.writeSharedArray(index, foobar.Messaging.IMPOSSIBLE_LOCATION);
+                int index = Messaging.FRONTIER_START + rng.nextInt(Messaging.FRONTIER_END - Messaging.FRONTIER_START);
+                self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
             }
         }
 
-        foobar.Messaging.reportAllEnemiesAround();
-        foobar.Messaging.reportAllMinesAround();
+        Messaging.reportAllEnemiesAround();
+        Messaging.reportAllMinesAround();
 
         // self.setIndicatorString("lead " + self.getTeamLeadAmount(us));
 
@@ -82,20 +79,20 @@ public strictfp class TypeArchon extends Globals {
             if(builderCount == 0)
                 tryBuildTowardsLowRubble(RobotType.BUILDER);
             if (isAllNegotiationsComplete())
-                self.writeSharedArray(foobar.Messaging.getArchonOffset(archonIndex) + foobar.Messaging.AVAILABILITY, turnCount);
+                self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.AVAILABILITY, turnCount);
         } else if (self.getMode().equals(RobotMode.PORTABLE)) {
             // System.out.println("Max soldiers: " + maxSoldierCount + " archon: " + maxSoldierCountArchon);
-            MapLocation target = foobar.Messaging.getArchonLocation(centralArchonIndex);
+            MapLocation target = Messaging.getArchonLocation(centralArchonIndex);
             int distanceToTarget = self.getLocation().distanceSquaredTo(target);
             if (distanceToTarget > 25)
-                foobar.PathFinding.moveTo(target);
+                PathFinding.moveTo(target);
             if (distanceToTarget <= 25 && self.canTransform())
                 self.transform();
         }
         if (isAllNegotiationsComplete()) {
-            foobar.Messaging.writeSharedLocation(foobar.Messaging.getArchonOffset(archonIndex), self.getLocation());
-            self.writeSharedArray(foobar.Messaging.getArchonOffset(archonIndex) + foobar.Messaging.SOLDIER_COUNT, soldierCount);
-            self.writeSharedArray(foobar.Messaging.getArchonOffset(archonIndex) + foobar.Messaging.MINER_COUNT, minerCount);
+            Messaging.writeSharedLocation(Messaging.getArchonOffset(archonIndex), self.getLocation());
+            self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.SOLDIER_COUNT, soldierCount);
+            self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.MINER_COUNT, minerCount);
         }
     }
 
@@ -115,17 +112,17 @@ public strictfp class TypeArchon extends Globals {
     static boolean shouldBuildMiner() throws GameActionException {
         if (turnCount < 4 && minerCount < 3)
             return true;
-        if (!foobar.Messaging.hasCoordinateIn(foobar.Messaging.MINER_START, foobar.Messaging.MINER_END))
+        if (!Messaging.hasCoordinateIn(Messaging.MINER_START, Messaging.MINER_END))
             return false;
-        if (foobar.Messaging.getClosestArchonTo(foobar.Messaging.MINER_START, foobar.Messaging.MINER_END, archonIndex) != archonIndex)
+        if (Messaging.getClosestArchonTo(Messaging.MINER_START, Messaging.MINER_END, archonIndex) != archonIndex)
             return false;
-        if (foobar.Messaging.getTotalMinerCount() > 10 && rng.nextDouble() > 0.125)
+        if (Messaging.getTotalMinerCount() > 10 && rng.nextDouble() > 0.125)
             return false;
         if (self.getTeamLeadAmount(us) > 300)
             return true;
         if (PathFinding.tryRetreat(RobotType.ARCHON.visionRadiusSquared, -1))
             return false;
-        if (self.readSharedArray(foobar.Messaging.BUILDWATCHTOWER_START) == 1)
+        if (self.readSharedArray(Messaging.BUILDWATCHTOWER_START) == 1)
             return false;
         return true;
     }
@@ -136,11 +133,11 @@ public strictfp class TypeArchon extends Globals {
      */
     @SuppressWarnings("RedundantIfStatement")
     static boolean shouldBuildSoldier() throws GameActionException {
-        if (!foobar.Messaging.hasCoordinateIn(foobar.Messaging.FRONTIER_START, foobar.Messaging.FRONTIER_END))
+        if (!Messaging.hasCoordinateIn(Messaging.FRONTIER_START, Messaging.FRONTIER_END))
             return false;
         if (self.getTeamLeadAmount(us) > 300)
             return true;
-        if (foobar.Messaging.getClosestArchonTo(foobar.Messaging.FRONTIER_START, foobar.Messaging.FRONTIER_END, archonIndex) != archonIndex)
+        if (Messaging.getClosestArchonTo(Messaging.FRONTIER_START, Messaging.FRONTIER_END, archonIndex) != archonIndex)
             return false;
         return true;
     }
@@ -163,7 +160,7 @@ public strictfp class TypeArchon extends Globals {
             if (self.readSharedArray(turnCount) == self.getID()) {
                 archonIndex = turnCount - 1;
                 log("Negotiate complete! I get index of " + archonIndex);
-                foobar.Messaging.writeSharedLocation(foobar.Messaging.getArchonOffset(archonIndex), self.getLocation());
+                Messaging.writeSharedLocation(Messaging.getArchonOffset(archonIndex), self.getLocation());
                 inNegotiation = false;
                 return;
             }
@@ -226,11 +223,11 @@ public strictfp class TypeArchon extends Globals {
         int minDisArchon = archonIndex;
         for (int i = 0; i < initialArchonCount; i++) {
             int maxDis = 0;
-            MapLocation loc = foobar.Messaging.getArchonLocation(i);
+            MapLocation loc = Messaging.getArchonLocation(i);
             for (int j = 0; j < initialArchonCount; j++) {
                 if (i == j)
                     continue;
-                maxDis = Math.max(maxDis, foobar.Messaging.getArchonLocation(j).distanceSquaredTo(loc));
+                maxDis = Math.max(maxDis, Messaging.getArchonLocation(j).distanceSquaredTo(loc));
             }
             if (minDis > maxDis) {
                 minDis = maxDis;
@@ -246,7 +243,7 @@ public strictfp class TypeArchon extends Globals {
      * If Archon wants to build watchtower then reserve 180 lead
      */
     static boolean watchtowerWaitingFund() throws GameActionException {
-        for (int index = foobar.Messaging.BUILDWATCHTOWER_START; index < Messaging.BUILDWATCHTOWER_END; index++)
+        for (int index = Messaging.BUILDWATCHTOWER_START; index < Messaging.BUILDWATCHTOWER_END; index++)
             // This means the last three bits encode
             // (builder claimed this watchtower) (builder arrived) (this entry is intentionally written)
             if (self.readSharedArray(index) % 8 == 7)
