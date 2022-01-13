@@ -115,12 +115,12 @@ public strictfp class TypeArchon extends Globals {
             return true;
         if (!Messaging.hasCoordinateIn(Messaging.MINER_START, Messaging.MINER_END))
             return false;
-        if (self.getTeamLeadAmount(us) > 300)
-            return true;
         if (Messaging.getClosestArchonTo(Messaging.MINER_START, Messaging.MINER_END, archonIndex) != archonIndex)
             return false;
         if (Messaging.getTotalMinerCount() > 10 && rng.nextDouble() > 0.125)
             return false;
+        if (self.getTeamLeadAmount(us) > 300)
+            return true;
         if (PathFinding.getLocalAdvantage() < 0)
             return false;
         if (self.readSharedArray(Messaging.BUILDWATCHTOWER_START) == 1)
