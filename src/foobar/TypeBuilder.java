@@ -5,6 +5,7 @@ import battlecode.common.*;
 public class TypeBuilder extends Globals {
     static int targetID = 0;
     static MapLocation targetLoc = null;
+    static int targetSharedArrayIndex = 0;
 
     static boolean isInNeedOfHelp(RobotInfo robot) {
         return robot.getTeam().equals(us)
@@ -33,48 +34,28 @@ public class TypeBuilder extends Globals {
         return true;
     }
 
-    public static void searchForTarget() throws GameActionException{
-        // Try find a position that is:
-            // Not occupied by a builder
-            // In the diagonal of an archon or watchtower
-        // Try find a watchtower or archon
-        RobotInfo[] nearbyBots = self.senseNearbyRobots(RobotType.BUILDER.visionRadiusSquared);
-        if (nearbyBots.length == 0)
-            return;
-        for (RobotInfo bot:nearbyBots){
-            if (bot.getType() != RobotType.WATCHTOWER && bot.getType() != RobotType.ARCHON)
+    public static void readSharedArrayForTarget() throws GameActionException{
+        for (int index=Messaging.BUILDWATCHTOWER_START; index<Messaging.BUILDWATCHTOWER_END; index++){
+            int raw = self.readSharedArray(index);
+            boolean isclaimed = raw % 8 / 4 == 1;
+            boolean isIntentionallyWritten = raw % 2 == 1;
+            // Do not consider those mines for which another builder has already claimed
+            if (isclaimed || !isIntentionallyWritten)
                 continue;
-            MapLocation botLoc = bot.getLocation();
-            for (Direction diagDirection: diagonalDirections){
-                MapLocation tentativeLoc = botLoc.add(diagDirection);
-                if (validTarget(tentativeLoc) && self.canSenseLocation(tentativeLoc) && self.onTheMap(tentativeLoc))
-                {
-                    targetLoc = tentativeLoc;
-                    return;
-                }
-            }
+            targetLoc = Messaging.decodeLocation(raw / 8);
+            return;
         }
-    }
-
-    public static void reserveWatchtowerBudget() throws GameActionException{
-        if (self.readSharedArray(Messaging.BUILDWATCHTOWER_START) != 1)
-            self.writeSharedArray(Messaging.BUILDWATCHTOWER_START, 1);
-    }
-
-    public static void cancelWatchtowerBudget() throws GameActionException{
-        if (self.readSharedArray(Messaging.BUILDWATCHTOWER_START) != 0)
-            self.writeSharedArray(Messaging.BUILDWATCHTOWER_START, 0);
     }
 
     public static void step() throws GameActionException {
         MapLocation here = self.getLocation();
         tryRepairAround();
         if (targetLoc == null){
-            cancelWatchtowerBudget();
-            PathFinding.wander();
-            searchForTarget();
+            readSharedArrayForTarget();
         }
-        else{
+
+        if (targetLoc != null){
+            // If we have a target
             // if we are at target
             if (here.distanceSquaredTo(targetLoc)<= 2) {
                 reserveWatchtowerBudget();

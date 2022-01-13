@@ -47,6 +47,9 @@ public strictfp class TypeArchon extends Globals {
         builderCount = 0;
         for (int i = Messaging.DEAD_ARCHON_START; i < Messaging.MINER_END; i++)
             self.writeSharedArray(i, Messaging.IMPOSSIBLE_LOCATION);
+        // Clear the watchtower indices
+        for (int i=Messaging.BUILDWATCHTOWER_START; i<Messaging.BUILDWATCHTOWER_END; i++)
+            self.writeSharedArray(i, 0);
     }
 
     public static void step() throws GameActionException {
@@ -236,5 +239,19 @@ public strictfp class TypeArchon extends Globals {
             }
         }
         return minDisArchon;
+    }
+
+
+    /**
+     * Utility for archon: scans array for whether there is a watchtower which awaits fund to be built
+     * If Archon wants to build watchtower then reserve 180 lead
+     */
+    static boolean watchtowerWaitingFund() throws GameActionException {
+        for (int index = Messaging.BUILDWATCHTOWER_START; index < Messaging.BUILDWATCHTOWER_END; index++)
+            // This means the last three bits encode
+            // (builder claimed this watchtower) (builder arrived) (this entry is intentionally written)
+            if (self.readSharedArray(index) % 8 == 7)
+                return true;
+        return false;
     }
 }

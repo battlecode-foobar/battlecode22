@@ -114,6 +114,10 @@ public class Globals {
             return (leadAmount == 0 && isTargeted == 0 && mineLoc.x == 0 && mineLoc.y == 0);
         }
     }
+
+    public static boolean isValidMapLoc(MapLocation loc){
+        return (loc.x > -1 && loc.y > -1 && loc.x < self.getMapWidth() && loc.x < self.getMapHeight());
+    }
     /**
      * Search for mines around us; if there is no friendly miner squatting on it, broadcast it
      */

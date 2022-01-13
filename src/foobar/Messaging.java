@@ -72,9 +72,12 @@ public class Messaging extends Globals {
     /**
      * End index of miner broadcast region in the shared array.
      */
-    public static final int MINER_END = MINER_START + 23;
+    public static final int MINER_END = MINER_START + 16;
+    /**
+     * Builder logic: (watchtower location, isclaimed)
+     */
     public static final int BUILDWATCHTOWER_START = MINER_END;
-    public static final int BUILDWATCHTOWER_END = BUILDWATCHTOWER_START+1;
+    public static final int BUILDWATCHTOWER_END = BUILDWATCHTOWER_START+4;
     /**
      * Bit masking for claimed mine.
      */
@@ -88,6 +91,33 @@ public class Messaging extends Globals {
      */
     public static final int MINE_PROXIMITY = 2;
 
+    /**
+     * Encode build watchtower information: (targetLoc of watchtower, has a builder claimed it, has the builder arrived)
+     */
+    public static int encodeWatchtowerLocationAndClaimArrivalStatus(MapLocation loc, boolean claimed, boolean arrived){
+        // Add 1 to denote that this has been intentionally written
+        return encodeLocation(loc)*8 + (claimed? 4:0)+(arrived?2:0)+1;
+    }
+
+    /**
+     * Returns whether the watchtower information has been successfully
+     * If true, then the location either exists in Sharedarray or has been written to shared array
+     */
+    public static boolean tryBroadcastTargetWatchtowerLoc(MapLocation loc) throws GameActionException{
+        for (int index=Messaging.BUILDWATCHTOWER_START; index<BUILDWATCHTOWER_END; index++){
+            int raw = self.readSharedArray(index);
+            // If this block is empty (!=0 means has been intentionally written) and we can write
+            if (raw % 2 ==0){
+                self.writeSharedArray(index,
+                        encodeWatchtowerLocationAndClaimArrivalStatus(loc, false, false));
+                return true;
+            }
+            // If there already exists a written entry with same location
+            if (decodeLocation(raw / 8).equals(loc))
+                return true;
+        }
+        return false;
+    }
 
     /**
      * Encodes a location as an integer.
