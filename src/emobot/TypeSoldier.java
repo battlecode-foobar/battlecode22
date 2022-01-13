@@ -21,9 +21,10 @@ public class TypeSoldier extends Globals {
         int minHealth = Integer.MAX_VALUE;
         RobotInfo enemy = null;
         for (RobotInfo candidate : enemies) {
-            if (candidate.getType().equals(RobotType.ARCHON)) {
-                PathFinding.moveTo(candidate.getLocation());
-            }
+            // Slow, gently, this is how a life is taken.
+//            if (candidate.getType().equals(RobotType.ARCHON)) {
+//                PathFinding.moveTo(candidate.getLocation());
+//            }
             if (candidate.getHealth() < minHealth) {
                 minHealth = candidate.getHealth();
                 enemy = candidate;
