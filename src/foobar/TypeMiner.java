@@ -44,12 +44,12 @@ public strictfp class TypeMiner extends Globals {
 
         if (targetLoc != null) {
             microAdjustTarget();
-            self.setIndicatorString("moving to target " + targetLoc);
+            // self.setIndicatorString("moving to target " + targetLoc);
             Messaging.claimMine(targetLoc);
             PathFinding.moveTo(targetLoc);
         } else {
             // PathFinding.spreadOut();
-            self.setIndicatorString("wandering");
+            // self.setIndicatorString("wandering");
             wander();
         }
     }
