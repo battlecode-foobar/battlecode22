@@ -2,10 +2,11 @@ package foobar;
 
 import battlecode.common.*;
 
+import java.awt.*;
+
 public class TypeBuilder extends Globals {
-    static int targetID = 0;
+    static int targetSharedArrayIndex = -1;
     static MapLocation targetLoc = null;
-    static int targetSharedArrayIndex = 0;
 
     static boolean isInNeedOfHelp(RobotInfo robot) {
         return robot.getTeam().equals(us)
@@ -42,7 +43,9 @@ public class TypeBuilder extends Globals {
             // Do not consider those mines for which another builder has already claimed
             if (isclaimed || !isIntentionallyWritten)
                 continue;
+            // Read the valid target location and ID
             targetLoc = Messaging.decodeLocation(raw / 8);
+            targetSharedArrayIndex = index;
             return;
         }
     }
@@ -54,28 +57,41 @@ public class TypeBuilder extends Globals {
             readSharedArrayForTarget();
         }
 
+        // If we have a target
         if (targetLoc != null){
-            // If we have a target
-            // if we are at target
+            int raw = self.readSharedArray(targetSharedArrayIndex);
+            // Assert that targetLoc and location read from array are equal
+            assert (Messaging.decodeLocation(raw / 8).equals(targetLoc));
+
+            // If we are immediately besides our target
             if (here.distanceSquaredTo(targetLoc)<= 2) {
-                self.setIndicatorString("I'm near target"+targetLoc+self.getActionCooldownTurns());
-                if (self.canBuildRobot(RobotType.WATCHTOWER, here.directionTo(targetLoc))) {
-                    self.setIndicatorString("Can build towards"+here.directionTo(targetLoc)+targetLoc);
-                    self.buildRobot(RobotType.WATCHTOWER, here.directionTo(targetLoc));
-                }
-                if (!validTarget(targetLoc))
-                    if (self.canSenseRobotAtLocation(targetLoc) &&
-                            self.senseRobotAtLocation(targetLoc).getType() == RobotType.WATCHTOWER &&
-                            self.senseRobotAtLocation(targetLoc).getMode() == RobotMode.PROTOTYPE){
-                        while (self.canRepair(targetLoc))
-                            self.repair(targetLoc);
+                // The block is not occupied at all: send message for archon to reserve lead
+                if (!self.canSenseRobotAtLocation(targetLoc))
+                    self.writeSharedArray(targetSharedArrayIndex,
+                        Messaging.encodeWatchtowerLocationAndClaimArrivalStatus(targetLoc, true, true));
+                // The block is occupied by some robot
+                if (self.canSenseRobotAtLocation(targetLoc)){
+                    RobotInfo botAtTarget = self.senseRobotAtLocation(targetLoc);
+                    // The block is occupied by tower
+                    if (botAtTarget.getType() == RobotType.WATCHTOWER && botAtTarget.getTeam() == us) {
+                        // The block is occupied by prototype tower: repair it
+                        if (botAtTarget.getMode() == RobotMode.PROTOTYPE)
+                            while (self.canRepair(targetLoc))
+                                self.repair(targetLoc);
+                        // The block is occupied by finished tower: remove entry from shared array and reset target
+                        if (botAtTarget.getMode() == RobotMode.TURRET)
+                        {
+                            self.writeSharedArray(targetSharedArrayIndex, 0);
+                            targetSharedArrayIndex = -1;
+                            targetLoc = null;
+                        }
                     }
-                    else {
+                    else{
+                        // The block is occupied by other stuff: other stuff
                         PathFinding.wander();
-                        return;
                     }
-            }
-            else{
+                }
+            } else{
                 self.setIndicatorString("Moving for target"+targetLoc);
                 PathFinding.moveToBug0(targetLoc);
             }
