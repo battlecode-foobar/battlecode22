@@ -12,6 +12,10 @@ public strictfp class TypeMiner extends Globals {
      */
     static MapLocation targetLoc;
     /**
+     * Am I wandering?
+     */
+    static boolean isWandering;
+    /**
      * A miner will not mine lead beneath this threshold
      */
     static final int SUSTAINABLE_LEAD_THRESHOLD = 1;
@@ -33,23 +37,26 @@ public strictfp class TypeMiner extends Globals {
 
         if (targetLoc == null || !isTargetStillValid()) {
             targetLoc = searchForTarget();
-            if (targetLoc == null)
+            isWandering = false;
+            if (targetLoc == null) {
                 targetLoc = searchForWanderingTarget();
+                isWandering = true;
+            }
         } else {
             MapLocation newLoc = searchForTarget();
             MapLocation here = self.getLocation();
-            if (newLoc != null && newLoc.distanceSquaredTo(here) < targetLoc.distanceSquaredTo(here))
+            if (newLoc != null && newLoc.distanceSquaredTo(here) < targetLoc.distanceSquaredTo(here)) {
+                isWandering = false;
                 targetLoc = newLoc;
+            }
         }
+        self.setIndicatorString("target " + targetLoc + " wandering? " + isWandering);
 
         if (targetLoc != null) {
             microAdjustTarget();
-            // self.setIndicatorString("moving to target " + targetLoc);
             Messaging.claimMine(targetLoc);
             PathFinding.moveTo(targetLoc);
         } else {
-            // PathFinding.spreadOut();
-            // self.setIndicatorString("wandering");
             wander();
         }
     }
@@ -87,10 +94,14 @@ public strictfp class TypeMiner extends Globals {
         }
     }
 
-    static int getNeighboringMinerCount(MapLocation loc) throws GameActionException {
+    static int getNeighboringMinerCount(MapLocation loc) {
         if (!self.canSenseLocation(loc))
             return 0;
         int count = 0;
+        for (RobotInfo bot : self.senseNearbyRobots(loc, 2, us))
+            if (bot.getType().equals(RobotType.MINER))
+                count++;
+/*
         for (Direction dir : directionsWithMe) {
             MapLocation neighborLoc = loc.add(dir);
             if (self.canSenseRobotAtLocation(neighborLoc)) {
@@ -102,6 +113,7 @@ public strictfp class TypeMiner extends Globals {
                     count++;
             }
         }
+*/
         return count;
     }
 
@@ -128,12 +140,17 @@ public strictfp class TypeMiner extends Globals {
     static boolean isTargetStillValid() throws GameActionException {
         if (!self.canSenseLocation(targetLoc))
             return true;
+        if (isWandering)
+            return false;
         if (self.senseLead(targetLoc) == 0)
             return false;
         if (self.getLocation().equals(targetLoc))
             return true;
+/*
         if (!self.getLocation().equals(targetLoc)) {
-            return getNeighboringMinerCount(targetLoc) == 0;
+*/
+        return getNeighboringMinerCount(targetLoc) == 0;
+/*
         } else {
             RobotInfo[] neighborBots = self.senseNearbyRobots(self.getType().visionRadiusSquared, us);
             int numMiners = 0;
@@ -143,6 +160,7 @@ public strictfp class TypeMiner extends Globals {
             // For each additional bot have 1/10 probability to move away
             return rng.nextInt(80) >= numMiners;
         }
+*/
     }
 
     static void wander() throws GameActionException {

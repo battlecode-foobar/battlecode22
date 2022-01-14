@@ -24,7 +24,7 @@ public class TypeBuilder extends Globals {
     }
 
     public static void scanSharedArrayForTarget() throws GameActionException{
-        for (int index=Messaging.BUILDWATCHTOWER_START; index<Messaging.BUILDWATCHTOWER_END; index++){
+        for (int index = Messaging.WATCHTOWER_START; index<Messaging.WATCHTOWER_END; index++){
             int raw = self.readSharedArray(index);
             boolean isclaimed = raw % 8 / 4 == 1;
             boolean isIntentionallyWritten = raw % 2 == 1;

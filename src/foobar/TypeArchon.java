@@ -50,7 +50,7 @@ public strictfp class TypeArchon extends Globals {
         for (int i = Messaging.DEAD_ARCHON_START; i < Messaging.MINER_END; i++)
             self.writeSharedArray(i, Messaging.IMPOSSIBLE_LOCATION);
         // Clear the watchtower indices
-        for (int i=Messaging.BUILDWATCHTOWER_START; i<Messaging.BUILDWATCHTOWER_END; i++)
+        for (int i = Messaging.WATCHTOWER_START; i<Messaging.WATCHTOWER_END; i++)
             self.writeSharedArray(i, 0);
     }
 
@@ -63,12 +63,32 @@ public strictfp class TypeArchon extends Globals {
             centralArchonIndex = computeCentralArchon();
         // Write global turn count.
         self.writeSharedArray(0, turnCount);
-        if (rng.nextDouble() <= 1.0 / self.getArchonCount()) {
-            // Memory mechanism. Average lifetime of frontier message = frontier region length / constant below.
+
+        boolean shouldForget = false;
+        if (isAllNegotiationsComplete()) {
+            for (int i = 0; i < initialArchonCount; i++) {
+                if (Messaging.isArchonUnavailable(i))
+                    continue;
+                shouldForget = i == archonIndex;
+                break;
+            }
+        }
+
+        if (shouldForget) {
+            // Probabilistic forgetting. Average lifetime of frontier message = frontier region length / constant below.
             for (int i = 0; i < 2; i++) {
                 int index = Messaging.FRONTIER_START + rng.nextInt(Messaging.FRONTIER_END - Messaging.FRONTIER_START);
                 self.writeSharedArray(index, Messaging.IMPOSSIBLE_LOCATION);
             }
+/*
+            for (int i = Messaging.MINER_START; i < Messaging.MINER_END; i++) {
+                int raw = self.readSharedArray(i);
+                // A trick: IMPOSSIBLE_LOCATION is defined as 1 less 1 << COORDINATE_WIDTH. So all mine locations with
+                // at least 1 ttl must be > IMPOSSIBLE_LOCATION.
+                if (raw > Messaging.IMPOSSIBLE_LOCATION)
+                    self.writeSharedArray(i, raw - (1 << Messaging.COORDINATE_WIDTH));
+            }
+*/
         }
 
         Messaging.reportAllEnemiesAround();
@@ -163,6 +183,7 @@ public strictfp class TypeArchon extends Globals {
      */
     static boolean shouldBuildBuilder() {
         // Build a builder when we are ready to build a watchtower and there is no builder
+        // return false; // Temporarily debugging...
         return builderCount == 0 && shouldBuildWatchtower();
     }
 
@@ -187,7 +208,6 @@ public strictfp class TypeArchon extends Globals {
         if (turnCount > 0) { // If at least one turn elapsed.
             if (self.readSharedArray(turnCount) == self.getID()) {
                 archonIndex = turnCount - 1;
-                log("Negotiate complete! I get index of " + archonIndex);
                 Messaging.writeSharedLocation(Messaging.getArchonOffset(archonIndex), self.getLocation());
                 inNegotiation = false;
                 return;
@@ -272,7 +292,7 @@ public strictfp class TypeArchon extends Globals {
      * If Archon wants to build watchtower then reserve 180 lead
      */
     static boolean watchtowerWaitingFund() throws GameActionException {
-        for (int index = Messaging.BUILDWATCHTOWER_START; index < Messaging.BUILDWATCHTOWER_END; index++)
+        for (int index = Messaging.WATCHTOWER_START; index < Messaging.WATCHTOWER_END; index++)
             // This means the last three bits encode
             // (builder claimed this watchtower) (builder arrived) (this entry is intentionally written)
             if (self.readSharedArray(index) % 8 == 7)

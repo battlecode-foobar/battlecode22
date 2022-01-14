@@ -1,18 +1,26 @@
 package foobar;
 
-import battlecode.common.GameActionException;
-import battlecode.common.MapLocation;
-import battlecode.common.RobotInfo;
-import battlecode.common.RobotType;
+import battlecode.common.*;
 
 /**
  * Messaging-related utility functions.
  */
 public class Messaging extends Globals {
     /**
+     * Width of coordinate encoding.
+     * <p>
+     * The height and width are both at most 60 in BattleCode, so they each need 6 bits. Together we need 12bits to
+     * fully encode a coordinate.
+     */
+    public static final int COORDINATE_WIDTH = 12;
+    /**
+     * Bit mask for location.
+     */
+    public static final int LOCATION_MASK = (1 << COORDINATE_WIDTH) - 1;
+    /**
      * An integer that corresponds to no locations.
      */
-    public static final int IMPOSSIBLE_LOCATION = 1 << 12;
+    public static final int IMPOSSIBLE_LOCATION = LOCATION_MASK;
     /**
      * Index of global turn count in the shared array.
      */
@@ -76,38 +84,28 @@ public class Messaging extends Globals {
     /**
      * Builder logic: (watchtower location, isclaimed)
      */
-    public static final int BUILDWATCHTOWER_START = MINER_END;
-    public static final int BUILDWATCHTOWER_END = BUILDWATCHTOWER_START+4;
-    /**
-     * Bit masking for claimed mine.
-     */
-    public static final int MINE_CLAIM_MASK = 1 << 13;
-    /**
-     * Bit masking for unclaimed mine.
-     */
-    public static final int MINE_UNCLAIM_MASK = MINE_CLAIM_MASK - 1;
-    /**
-     * Mine reporting proximity threshold.
-     */
+    public static final int WATCHTOWER_START = MINER_END;
+    public static final int WATCHTOWER_END = WATCHTOWER_START + 4;
+
     public static final int MINE_PROXIMITY = 2;
 
     /**
      * Encode build watchtower information: (targetLoc of watchtower, has a builder claimed it, has the builder arrived)
      */
-    public static int encodeWatchtowerLocationAndClaimArrivalStatus(MapLocation loc, boolean claimed, boolean arrived){
+    public static int encodeWatchtowerLocationAndClaimArrivalStatus(MapLocation loc, boolean claimed, boolean arrived) {
         // Add 1 to denote that this has been intentionally written
-        return encodeLocation(loc)*8 + (claimed? 4:0)+(arrived?2:0)+1;
+        return encodeLocation(loc) * 8 + (claimed ? 4 : 0) + (arrived ? 2 : 0) + 1;
     }
 
     /**
      * Returns whether the watchtower information has been successfully
      * If true, then the location either exists in Sharedarray or has been written to shared array
      */
-    public static boolean tryBroadcastTargetWatchtowerLoc(MapLocation loc) throws GameActionException{
-        for (int index=Messaging.BUILDWATCHTOWER_START; index<BUILDWATCHTOWER_END; index++){
+    public static boolean tryBroadcastTargetWatchtowerLoc(MapLocation loc) throws GameActionException {
+        for (int index = Messaging.WATCHTOWER_START; index < WATCHTOWER_END; index++) {
             int raw = self.readSharedArray(index);
             // If this block is empty (!=0 means has been intentionally written) and we can write
-            if (raw % 2 ==0){
+            if (raw % 2 == 0) {
                 self.writeSharedArray(index,
                         encodeWatchtowerLocationAndClaimArrivalStatus(loc, false, false));
                 return true;
@@ -126,10 +124,9 @@ public class Messaging extends Globals {
      * @return The encoded integer.
      */
     public static int encodeLocation(MapLocation loc) {
-        return (loc.x << 6) | loc.y;
+        return loc.x << 6 | loc.y;
     }
 
-    // What is the "&255 supposed to mean??" also isn't 6 (2^6=64) enough
     public static MapLocation decodeLocation(int raw) {
         return new MapLocation((raw >> 6) & 0x3F, raw & 0x3F);
     }
@@ -188,8 +185,21 @@ public class Messaging extends Globals {
         return self.readSharedArray(getArchonOffset(index) + SOLDIER_COUNT);
     }
 
-    public static boolean isArchonAvailable(int index) throws GameActionException {
-        return Math.abs(getGlobalTurnCount() - self.readSharedArray(getArchonOffset(index) + AVAILABILITY)) < 2;
+    /**
+     * Checks whether an archon is not available.
+     *
+     * @param index The archon index.
+     * @return Whether the archon specified by the index is not available.
+     * @throws GameActionException Actually doesn't throw.
+     */
+    public static boolean isArchonUnavailable(int index) throws GameActionException {
+        // When this function is called, there are two possibilities:
+        // 1. None of the archons have updated the global turn count. Because update of availability counter happens
+        //    after updating global turn count so availability has not been updated as well. In this case global turn
+        //    count = availability.
+        // 2. Global turn count has been updated but the availability has not. In this case availability = global turn
+        //    count - 1.
+        return self.readSharedArray(getArchonOffset(index) + AVAILABILITY) <= getGlobalTurnCount() - 2;
     }
 
 
@@ -313,56 +323,86 @@ public class Messaging extends Globals {
     }
 
     /**
+     * Performs a random sample (without replacement) up to a given number of elements from an array of objects.
+     * @param candidates A list of map locations to be partially shuffled. This array will be mutated in-place.
+     * @return The sample size.
+     */
+    @SuppressWarnings("SameParameterValue")
+    static int sample(Object[] candidates, int maxCount) {
+        if (candidates.length > maxCount) {
+            for (int i = 0; i < maxCount; i++) {
+                int j = i + rng.nextInt(candidates.length - i);
+                Object temp = candidates[i];
+                candidates[i] = candidates[j];
+                candidates[j] = temp;
+            }
+            return maxCount;
+        }
+        return candidates.length;
+    }
+
+    /**
      * Reports all enemies around the robot.
+     *
      * @throws GameActionException Actually doesn't throw.
      */
     public static void reportAllEnemiesAround() throws GameActionException {
+        final int MAX_COUNT = 6;
         RobotInfo[] candidates = self.senseNearbyRobots(self.getType().visionRadiusSquared, them);
         if (candidates.length == 0)
             return;
-        for (RobotInfo candidate : candidates) {
-            if (candidate.getType().equals(RobotType.ARCHON)) {
-                tryAddLocationInRange(ENEMY_ARCHON_START, ENEMY_ARCHON_END, candidate.getLocation(), 5, true);
-            }
-        }
-        for (int i = 0; i < 5; i++) {
-            RobotInfo loc = candidates[rng.nextInt(candidates.length)];
-            reportEnemyUnit(loc.getLocation());
-        }
+        int len = sample(candidates, MAX_COUNT);
+        for (int i = 0; i < len; i++)
+            reportEnemyUnit(candidates[i].getLocation());
     }
 
     /**
      * Reports all lead locations around the robot.
+     *
      * @throws GameActionException Actually doesn't throw.
      */
     public static void reportAllMinesAround() throws GameActionException {
-        MapLocation[] candidates = self.senseNearbyLocationsWithLead(self.getType().visionRadiusSquared);
+        final int MAX_COUNT = 6;
+        MapLocation[] candidates = self.senseNearbyLocationsWithLead(-1, TypeMiner.SUSTAINABLE_LEAD_THRESHOLD + 1);
         if (candidates.length == 0)
             return;
-        int iter = 0;
-        while (iter < 5) {
-            MapLocation loc = candidates[rng.nextInt(candidates.length)];
-            if (self.senseLead(loc) > TypeMiner.SUSTAINABLE_LEAD_THRESHOLD) {
-                tryAddLocationInRange(MINER_START, MINER_END, loc, MINE_PROXIMITY, false);
-                break;
+        int len = sample(candidates, MAX_COUNT);
+        for (int i = 0; i < len; i++) {
+            MapLocation loc = candidates[i];
+            boolean nearMiner = false;
+            for (RobotInfo bot : self.senseNearbyRobots(loc, 2, us)) {
+                if (bot.getType().equals(RobotType.MINER)) {
+                    nearMiner = true;
+                    break;
+                }
             }
-            iter++;
+            if (nearMiner)
+                continue;
+            int encoded = encodeLocation(loc);
+            for (int j = MINER_START; j < MINER_END; j++) {
+                int raw = self.readSharedArray(j);
+                if (raw == IMPOSSIBLE_LOCATION || decodeLocation(raw).distanceSquaredTo(loc) > MINE_PROXIMITY) {
+                    self.writeSharedArray(j, encoded/* | MINE_CLAIM_INITIAL_TTL << COORDINATE_WIDTH */);
+                    break;
+                }
+            }
         }
     }
 
 
+    /**
+     * Claim the ownership of a mine.
+     *
+     * @param loc The location of the mine.
+     * @throws GameActionException Actually doesn't throw.
+     */
     public static void claimMine(MapLocation loc) throws GameActionException {
         for (int i = MINER_START; i < MINER_END; i++) {
             int raw = self.readSharedArray(i);
-/*
-            if (raw == IMPOSSIBLE_LOCATION || (raw & MINE_CLAIM_MASK) != 0)
-                continue;
-*/
             if (raw == IMPOSSIBLE_LOCATION)
                 continue;
             MapLocation there = decodeLocation(raw);
             if (loc.distanceSquaredTo(there) <= MINE_PROXIMITY) {
-                // self.writeSharedArray(i, raw | MINE_CLAIM_MASK);
                 self.writeSharedArray(i, IMPOSSIBLE_LOCATION);
                 break;
             }
@@ -387,10 +427,6 @@ public class Messaging extends Globals {
     public static boolean hasCoordinateIn(int start, int end) throws GameActionException {
         for (int i = start; i < end; i++) {
             int raw = self.readSharedArray(i);
-/*
-            if (raw != IMPOSSIBLE_LOCATION && (raw & MINE_CLAIM_MASK) == 0)
-                return true;
-*/
             if (raw != IMPOSSIBLE_LOCATION)
                 return true;
         }
@@ -401,7 +437,7 @@ public class Messaging extends Globals {
         int minDis = Integer.MAX_VALUE;
         int minDisArchon = 0;
         for (int j = 0; j < initialArchonCount; j++) {
-            if (!isArchonAvailable(j))
+            if (isArchonUnavailable(j))
                 continue;
             int dis = getArchonLocation(j).distanceSquaredTo(loc);
             if (dis < minDis) {
@@ -417,14 +453,10 @@ public class Messaging extends Globals {
         int minDisArchon = defaultValue;
         for (int i = start; i < end; i++) {
             int raw = self.readSharedArray(i);
-/*
-            if (raw == Messaging.IMPOSSIBLE_LOCATION || (raw & MINE_CLAIM_MASK) != 0)
-                continue;
-*/
-            if (raw == IMPOSSIBLE_LOCATION)
+            if (raw == Messaging.IMPOSSIBLE_LOCATION || raw >> COORDINATE_WIDTH != 0)
                 continue;
             for (int j = 0; j < initialArchonCount; j++) {
-                if (!isArchonAvailable(j))
+                if (isArchonUnavailable(j))
                     continue;
                 int dis = getArchonLocation(j).distanceSquaredTo(Messaging.decodeLocation(raw));
                 if (dis < minDis) {
@@ -438,9 +470,10 @@ public class Messaging extends Globals {
 
     /**
      * Returns the most important frontier relative to Location "here"
-     * @param location
-     * @return
-     * @throws GameActionException
+     *
+     * @param here The location.
+     * @return The most important frontier relative to here.
+     * @throws GameActionException Actually doesn't throw.
      */
     public static MapLocation getMostImportantFrontier(MapLocation here) throws GameActionException {
         int minDis = Integer.MAX_VALUE;
@@ -473,7 +506,7 @@ public class Messaging extends Globals {
         return minDisLoc;
     }
 
-    public static MapLocation getMostImportantFrontier() throws GameActionException{
+    public static MapLocation getMostImportantFrontier() throws GameActionException {
         return getMostImportantFrontier(self.getLocation());
     }
 }
