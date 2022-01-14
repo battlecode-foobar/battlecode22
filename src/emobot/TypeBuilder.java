@@ -2,6 +2,8 @@ package emobot;
 
 import battlecode.common.*;
 
+import java.util.Map;
+
 public class TypeBuilder extends Globals {
     static int targetSharedArrayIndex = -1;
     static MapLocation targetLoc = null;
@@ -13,14 +15,12 @@ public class TypeBuilder extends Globals {
     }
 
     static void tryRepairAround() throws GameActionException{
-        return;
-        /*
         MapLocation here = self.getLocation();
         for (Direction dir : directionsWithMe) {
             MapLocation there = here.add(dir);
             while (self.canRepair(there))
                 self.repair(there);
-        }*/
+        }
     }
 
     public static boolean validTarget(MapLocation loc) throws GameActionException{
@@ -55,10 +55,31 @@ public class TypeBuilder extends Globals {
             readSharedArrayForTarget();
         }
         RobotInfo[] bots = self.senseNearbyRobots();
-        if(self.canMutate(bots[0].getLocation())) {
-            self.mutate(bots[0].getLocation());
-            self.disintegrate();
+//        if(self.canMutate(bots[0].getLocation())) {
+//            self.mutate(bots[0].getLocation());
+//            self.disintegrate();
+//        }
+        if(self.canBuildRobot(RobotType.LABORATORY,Direction.NORTH))
+        {
+            self.buildRobot(RobotType.LABORATORY,Direction.NORTH);
+//            self.disintegrate();
         }
+        if(self.canBuildRobot(RobotType.LABORATORY,Direction.SOUTH))
+        {
+            self.buildRobot(RobotType.LABORATORY,Direction.SOUTH);
+//            self.disintegrate();
+        }
+        here = self.getLocation();
+        MapLocation there = here.add(Direction.NORTH);
+        while (self.canRepair(there))
+            self.repair(there);
+        here = self.getLocation();
+        there = here.add(Direction.SOUTH);
+        while (self.canRepair(there))
+            self.repair(there);
+
+        PathFinding.tryRetreat(20,-1);
+
 
 //        // If we have a target
 //        if (targetLoc != null){
