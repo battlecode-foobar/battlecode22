@@ -251,7 +251,7 @@ public class PathFinding extends Globals {
      * @param dest The destination.
      * @return The direction from the current location to dest, in radians, relative to the positive x-axis.
      */
-    static double getTheta(MapLocation dest) {
+    public static double getTheta(MapLocation dest) {
         MapLocation here = self.getLocation();
         return Math.atan2(dest.y - here.y, dest.x - here.x);
     }

@@ -84,12 +84,12 @@ public strictfp class TypeArchon extends Globals {
                 scheduleWatchtower();
             }
             // OPTIMIZE: if multiple options are available, should have a tie-breaker of some sort.
-            if (shouldBuildMiner())
+            if (shouldBuildBuilder())
+                tryBuildTowardsLowRubble(RobotType.BUILDER);
+            else if (shouldBuildMiner())
                 tryBuildTowardsLowRubble(RobotType.MINER);
             else if (shouldBuildSoldier())
                 tryBuildTowardsLowRubble(RobotType.SOLDIER);
-            else if (shouldBuildBuilder())
-                tryBuildTowardsLowRubble(RobotType.BUILDER);
             if (isAllNegotiationsComplete())
                 self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.AVAILABILITY, turnCount);
         } else if (self.getMode().equals(RobotMode.PORTABLE)) {
@@ -167,15 +167,38 @@ public strictfp class TypeArchon extends Globals {
     }
 
     static boolean shouldBuildWatchtower() {
-        return (enemyDirection != Direction.CENTER && self.getTeamLeadAmount(us) > 300);
+        return (enemyDirection != Direction.CENTER && soldierCount > 5 && false);
     }
 
     static void scheduleWatchtower() throws GameActionException{
         if (enemyDirection == Direction.CENTER)
             return;
         MapLocation tentativeWatchtowerLoc = self.getLocation().add(enemyDirection);
-        if (!self.canSenseRobotAtLocation(tentativeWatchtowerLoc))
-            Messaging.tryBroadcastTargetWatchtowerLoc(tentativeWatchtowerLoc);
+        // In the 5 directions closest, choose the one with lowest rubble
+        Direction[] watchtowerDirs = PathFinding.getDiscreteDirection5(PathFinding.getTheta(tentativeWatchtowerLoc));
+        Direction bestWatchtowerDir = null;
+        int leastRubble = Integer.MAX_VALUE;
+        for (Direction dir:watchtowerDirs){
+            MapLocation candidateLoc = self.getLocation().add(dir);
+            if (self.canSenseLocation(candidateLoc)){
+                if (self.canSenseRobotAtLocation(candidateLoc)) {
+                    if (self.senseRobotAtLocation(candidateLoc).getType() == RobotType.WATCHTOWER)
+                        return;
+                    continue;
+                }
+                int rubbleAtLoc = self.senseRubble(candidateLoc);
+                if (rubbleAtLoc < leastRubble)
+                {
+                    leastRubble = rubbleAtLoc;
+                    bestWatchtowerDir = dir;
+                }
+            }
+        }
+        MapLocation scheduledWatchtowerLoc = self.getLocation().add(bestWatchtowerDir);
+        if (bestWatchtowerDir != null && !self.canSenseRobotAtLocation(scheduledWatchtowerLoc)) {
+            self.setIndicatorString("Broadcasting for watchtower built@"+ scheduledWatchtowerLoc+shouldBuildWatchtower());
+            Messaging.tryBroadcastTargetWatchtowerLoc(scheduledWatchtowerLoc);
+        }
     }
 
     /**
@@ -314,8 +337,7 @@ public strictfp class TypeArchon extends Globals {
         }
         if (minArchonIndex == archonIndex) {
             // Provide a first estimate of where the enemy is;
-            // if (enemyDirection == Direction.CENTER)
-            if (closestArchonDirToFrontier != Direction.CENTER)
+            if (enemyDirection == Direction.CENTER)
                 enemyDirection = closestArchonDirToFrontier;
             return closestArchonDirToFrontier;
         }

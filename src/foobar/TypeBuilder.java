@@ -105,7 +105,7 @@ public class TypeBuilder extends Globals {
             Direction direction = directions[rng.nextInt(directions.length)];
             MapLocation tentativeLoc = self.getLocation().add(direction);
             if (self.canMove(direction) &&
-                    birthLoc.isWithinDistanceSquared(tentativeLoc, self.getType().actionRadiusSquared))
+                    birthLoc.isWithinDistanceSquared(tentativeLoc, self.getType().visionRadiusSquared))
                 self.move(direction);
         }
 
