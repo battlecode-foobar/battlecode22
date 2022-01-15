@@ -2,6 +2,8 @@ package foobar;
 
 import battlecode.common.*;
 
+import java.util.Random;
+
 
 /**
  * Main controller logic for a Miner unit
@@ -19,13 +21,13 @@ public strictfp class TypeMiner extends Globals {
      * A miner will not mine lead beneath this threshold
      */
     static final int SUSTAINABLE_LEAD_THRESHOLD = 1;
-
     static double wanderTheta = 0;
-
+    static int currentTargetCommitment = 0;
 
     public static void step() throws GameActionException {
         if (firstRun()) {
-            wanderTheta = (2 * rng.nextDouble() - 1) * Math.PI;
+            Random trueRandom = new Random(self.getID());
+            wanderTheta = (2 * trueRandom.nextDouble() - 1) * Math.PI;
         }
 
         Messaging.reportAllEnemiesAround();
@@ -33,32 +35,47 @@ public strictfp class TypeMiner extends Globals {
         Messaging.claimMine(self.getLocation());
         tryMineResources();
         //This is no place for the weak, or foolhardy
-        PathFinding.tryRetreat(20,-3);
+        PathFinding.tryRetreat(20, -3);
 
         if (targetLoc == null || !isTargetStillValid()) {
             targetLoc = searchForTarget();
             isWandering = false;
+            currentTargetCommitment = 0;
             if (targetLoc == null) {
                 targetLoc = searchForWanderingTarget();
                 isWandering = true;
             }
-        } else {
+        } else if (currentTargetCommitment >= 1) {
             MapLocation newLoc = searchForTarget();
             MapLocation here = self.getLocation();
-            if (newLoc != null && newLoc.distanceSquaredTo(here) < targetLoc.distanceSquaredTo(here)) {
+            boolean shouldUpdateLocation = false;
+            if (newLoc != null) {
+                if (isWandering) {
+                    shouldUpdateLocation = (targetLoc.x - here.x) * (newLoc.x - here.x) + (targetLoc.y - here.y) * (newLoc.y - here.y) >= 0;
+                } else {
+                    double oldDis = Math.sqrt(targetLoc.distanceSquaredTo(here));
+                    double newDis = Math.sqrt(newLoc.distanceSquaredTo(here));
+                    shouldUpdateLocation = newDis <= oldDis - 2;
+                }
+            }
+            if (shouldUpdateLocation) {
                 isWandering = false;
                 targetLoc = newLoc;
+                currentTargetCommitment = 0;
             }
         }
-        self.setIndicatorString("target " + targetLoc + " wandering? " + isWandering);
 
         if (targetLoc != null) {
             microAdjustTarget();
             Messaging.claimMine(targetLoc);
-            PathFinding.moveTo(targetLoc);
+            boolean moved = PathFinding.moveTo(targetLoc);
+            if (moved && isWandering) {
+                currentTargetCommitment++;
+            }
         } else {
             wander();
         }
+        self.setIndicatorString("target " + targetLoc + " wandering? " + isWandering);
     }
 
     static MapLocation searchForTarget() throws GameActionException {
@@ -78,20 +95,20 @@ public strictfp class TypeMiner extends Globals {
     }
 
     static MapLocation searchForWanderingTarget() throws GameActionException {
-        final int RADIUS = 9;
         MapLocation here = self.getLocation();
-        while (true) {
-            double theta = (2 * rng.nextDouble() - 1) * Math.PI;
-            MapLocation newLoc = new MapLocation(
-                    here.x + (int)Math.round(RADIUS * Math.cos(theta)),
-                    here.y + (int)Math.round(RADIUS * Math.sin(theta))
-            );
-            if (newLoc.x < 0 || newLoc.y < 0)
-                continue;
-            if (newLoc.x >= self.getMapWidth() || newLoc.y >= self.getMapHeight())
-                continue;
-            return newLoc;
+        int width = self.getMapWidth(), height = self.getMapHeight();
+        // double theta = (2 * rng.nextDouble() - 1) * Math.PI;
+        double dx = width * Math.cos(wanderTheta);
+        double dy = height * Math.sin(wanderTheta);
+        double norm = Math.hypot(dx, dy);
+        dx /= norm;
+        dy /= norm;
+        double x = here.x, y = here.y;
+        while (0 <= x && x < width && 0 <= y && y < height) {
+            x += dx;
+            y += dy;
         }
+        return new MapLocation((int)(x - dx), (int)(y - dy));
     }
 
     static int getNeighboringMinerCount(MapLocation loc) {
@@ -101,19 +118,6 @@ public strictfp class TypeMiner extends Globals {
         for (RobotInfo bot : self.senseNearbyRobots(loc, 2, us))
             if (bot.getType().equals(RobotType.MINER))
                 count++;
-/*
-        for (Direction dir : directionsWithMe) {
-            MapLocation neighborLoc = loc.add(dir);
-            if (self.canSenseRobotAtLocation(neighborLoc)) {
-                RobotInfo botAtLoc = self.senseRobotAtLocation(neighborLoc);
-                if (botAtLoc == null)
-                    continue;
-                if (botAtLoc.getType().equals(RobotType.MINER) && botAtLoc.getID() != self.getID()
-                        && botAtLoc.getTeam().equals(us))
-                    count++;
-            }
-        }
-*/
         return count;
     }
 
@@ -127,7 +131,7 @@ public strictfp class TypeMiner extends Globals {
         for (Direction dir : directions) {
             MapLocation there = targetLoc.add(dir);
             if (!self.canSenseLocation(there))
-                return;
+                continue;
             int minesAround = self.senseNearbyLocationsWithLead(there, 2).length;
             if (maxMinesAround < minesAround) {
                 maxMinesAround = minesAround;
@@ -141,15 +145,17 @@ public strictfp class TypeMiner extends Globals {
         if (!self.canSenseLocation(targetLoc))
             return true;
         if (isWandering)
-            return false;
-        if (self.senseLead(targetLoc) == 0)
-            return false;
-        if (self.getLocation().equals(targetLoc))
+            return true;
+        if (self.getLocation().distanceSquaredTo(targetLoc) == 0)
             return true;
 /*
         if (!self.getLocation().equals(targetLoc)) {
 */
         return getNeighboringMinerCount(targetLoc) == 0;
+/*
+        RobotInfo botThere = self.senseRobotAtLocation(targetLoc);
+        return botThere == null || !botThere.getTeam().equals(us) || !botThere.getType().equals(RobotType.MINER);
+*/
 /*
         } else {
             RobotInfo[] neighborBots = self.senseNearbyRobots(self.getType().visionRadiusSquared, us);

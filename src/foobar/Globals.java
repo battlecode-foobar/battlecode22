@@ -99,92 +99,73 @@ public class Globals {
             System.out.println(message);
     }
 
-    /**
-     * Evaluates the strength when it comes to fighting.
-     * Miner: 0
-     * Soldier: 3
-     * Watchtower: 6
-     * Sage: 6
-     *
-     * @param bot the RobotInfo to be evaluated.
-     */
-    public static int evaluatePower(RobotInfo bot) {
-        switch (bot.getType()) {
-            case SOLDIER:
-            case SAGE:
-                return 2;
-            case WATCHTOWER:
-                return 4;
-        }
-        return 0;
-    }
-
-    public static class LeadMine{
+    public static class LeadMine {
         public static int leadAmount;
         public static int isTargeted;
         public static MapLocation mineLoc;
 
-        public LeadMine(int amount, int istargeted, MapLocation mineloc){
+        public LeadMine(int amount, int istargeted, MapLocation mineloc) {
             leadAmount = amount;
             isTargeted = istargeted;
             mineLoc = mineloc;
         }
 
-        public static boolean isEmpty(){
+        public static boolean isEmpty() {
             return (leadAmount == 0 && isTargeted == 0 && mineLoc.x == 0 && mineLoc.y == 0);
         }
     }
 
-    public static boolean isValidMapLoc(MapLocation loc){
+    public static boolean isValidMapLoc(MapLocation loc) {
         return (loc.x > -1 && loc.y > -1 && loc.x < self.getMapWidth() && loc.x < self.getMapHeight());
     }
+
     /**
      * Search for mines around us; if there is no friendly miner squatting on it, broadcast it
      */
-    public static boolean tryBroadcastLeadMines() throws GameActionException{
+    public static boolean tryBroadcastLeadMines() throws GameActionException {
         /**boolean broadcastedAnything = false;
-        MapLocation[] leadMines = self.senseNearbyLocationsWithLead(self.getType().visionRadiusSquared);
-        int[] leadAmount = new int[leadMines.length];
-        for (int i=0;i<leadMines.length; i++)
-            leadAmount[i] = self.senseLead(leadMines[i]);
+         MapLocation[] leadMines = self.senseNearbyLocationsWithLead(self.getType().visionRadiusSquared);
+         int[] leadAmount = new int[leadMines.length];
+         for (int i=0;i<leadMines.length; i++)
+         leadAmount[i] = self.senseLead(leadMines[i]);
 
-        int numBroadcastedTargets = 0;
-        int leadMineBroadcastBandwith = (Messaging.Min - Messaging.minerBroadcastBandMin) / 2;
-        LeadMine[] broadcastedTargets = new LeadMine[leadMineBroadcastBandwith];
-        // First read all the mines in the broadcasting channel
-        for (int i=Messaging.minerBroadcastBandMin; i<Messaging.minerBroadcastBandMin; i+=2){
-            broadcastedTargets[numBroadcastedTargets] = readLeadMineInfoAt(i);
-            if (broadcastedTargets[numBroadcastedTargets++].isEmpty())
-                break;
-        }
+         int numBroadcastedTargets = 0;
+         int leadMineBroadcastBandwith = (Messaging.Min - Messaging.minerBroadcastBandMin) / 2;
+         LeadMine[] broadcastedTargets = new LeadMine[leadMineBroadcastBandwith];
+         // First read all the mines in the broadcasting channel
+         for (int i=Messaging.minerBroadcastBandMin; i<Messaging.minerBroadcastBandMin; i+=2){
+         broadcastedTargets[numBroadcastedTargets] = readLeadMineInfoAt(i);
+         if (broadcastedTargets[numBroadcastedTargets++].isEmpty())
+         break;
+         }
 
-        // How many have we written to the channel already
-        int written_count = 0;
-        int writing_index_count = 0;
-        // for each locally sensed leadmine, if it has not been broadcasted, then broadcast it
-        while (written_count < leadMineBroadcastBandwith - numBroadcastedTargets &&
-                writing_index_count < leadMines.length){
-            boolean hasBeenBroadcasted = false;
-            for (int i=0; i<numBroadcastedTargets; i++){
-                if (leadMines[writing_index_count].equals(broadcastedTargets[i])){
-                    hasBeenBroadcasted = true;
-                    break;
-                }
-            }
+         // How many have we written to the channel already
+         int written_count = 0;
+         int writing_index_count = 0;
+         // for each locally sensed leadmine, if it has not been broadcasted, then broadcast it
+         while (written_count < leadMineBroadcastBandwith - numBroadcastedTargets &&
+         writing_index_count < leadMines.length){
+         boolean hasBeenBroadcasted = false;
+         for (int i=0; i<numBroadcastedTargets; i++){
+         if (leadMines[writing_index_count].equals(broadcastedTargets[i])){
+         hasBeenBroadcasted = true;
+         break;
+         }
+         }
 
-            // TODO: not only sense but only do so for friendly miner, but this shouldn't be a big problem.
-            if (!hasBeenBroadcasted && !self.canSenseRobotAtLocation(leadMines[writing_index_count])){
-                writeLeadMineInfoTo(new LeadMine(leadAmount[writing_index_count],
-                        0, leadMines[writing_index_count]),
-                        Messaging.minerBroadcastBandMin+2*(numBroadcastedTargets+(written_count)));
-                self.setIndicatorString("Broadcasting lead amount"+leadAmount[writing_index_count]+"@"+
-                        leadMines[writing_index_count]);
-                writing_index_count++;
-                written_count++;
-                broadcastedAnything = true;
-            }
-        }
-        return broadcastedAnything;*/
+         // TODO: not only sense but only do so for friendly miner, but this shouldn't be a big problem.
+         if (!hasBeenBroadcasted && !self.canSenseRobotAtLocation(leadMines[writing_index_count])){
+         writeLeadMineInfoTo(new LeadMine(leadAmount[writing_index_count],
+         0, leadMines[writing_index_count]),
+         Messaging.minerBroadcastBandMin+2*(numBroadcastedTargets+(written_count)));
+         self.setIndicatorString("Broadcasting lead amount"+leadAmount[writing_index_count]+"@"+
+         leadMines[writing_index_count]);
+         writing_index_count++;
+         written_count++;
+         broadcastedAnything = true;
+         }
+         }
+         return broadcastedAnything;*/
         return false;
     }
 }

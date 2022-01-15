@@ -19,11 +19,16 @@ public class TypeSoldier extends Globals {
         int radius = self.getType().actionRadiusSquared;
         RobotInfo[] enemies = self.senseNearbyRobots(radius, them);
         int minHealth = Integer.MAX_VALUE;
+        int maxPriority = 0;
         RobotInfo enemy = null;
-        for (RobotInfo candidate : enemies) {
-            if (candidate.getHealth() < minHealth) {
-                minHealth = candidate.getHealth();
-                enemy = candidate;
+        for (RobotInfo bot : enemies) {
+            int priority = FireControl.evaluatePriority(bot);
+            if (priority < maxPriority)
+                continue;
+            if (priority > maxPriority || bot.getHealth() < minHealth) {
+                maxPriority = priority;
+                minHealth = bot.getHealth();
+                enemy = bot;
             }
         }
         if (enemy != null) {

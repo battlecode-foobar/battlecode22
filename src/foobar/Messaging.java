@@ -282,6 +282,7 @@ public class Messaging extends Globals {
      * @param proximity The proximity threshold (in distance squared).
      * @throws GameActionException If any index is invalid or the location is invalid.
      */
+    @Deprecated
     public static void tryAddLocationInRange(int start, int end, MapLocation loc, int proximity, boolean replace)
             throws GameActionException {
         int encoded = encodeLocation(loc);
@@ -310,16 +311,6 @@ public class Messaging extends Globals {
      */
     public static void reportDeadArchon(MapLocation loc) throws GameActionException {
         tryAddInRange(DEAD_ARCHON_START, DEAD_ARCHON_END, encodeLocation(loc), IMPOSSIBLE_LOCATION);
-    }
-
-    /**
-     * Reports an enemy unit.
-     *
-     * @param loc The location of the enemy unit.
-     * @throws GameActionException If the location is invalid.
-     */
-    public static void reportEnemyUnit(MapLocation loc) throws GameActionException {
-        tryAddLocationInRange(FRONTIER_START, FRONTIER_END, loc, 6, true);
     }
 
     /**
@@ -352,8 +343,25 @@ public class Messaging extends Globals {
         if (candidates.length == 0)
             return;
         int len = sample(candidates, MAX_COUNT);
-        for (int i = 0; i < len; i++)
-            reportEnemyUnit(candidates[i].getLocation());
+        for (int i = 0; i < len; i++) {
+            RobotInfo bot = candidates[i];
+            int priority = FireControl.evaluatePriority(bot);
+            MapLocation loc = bot.getLocation();
+            int encoded = encodeLocation(loc) | priority << COORDINATE_WIDTH;
+            for (int j = FRONTIER_START; j < FRONTIER_END; j++) {
+                int raw = self.readSharedArray(j);
+                if (raw == IMPOSSIBLE_LOCATION) {
+                    self.writeSharedArray(j, encoded);
+                    break;
+                }
+                if (decodeLocation(raw).distanceSquaredTo(loc) <= 6) {
+                    if (raw >> COORDINATE_WIDTH < priority) {
+                        self.writeSharedArray(j, encoded);
+                    }
+                    break;
+                }
+            }
+        }
     }
 
     /**
@@ -363,21 +371,24 @@ public class Messaging extends Globals {
      */
     public static void reportAllMinesAround() throws GameActionException {
         final int MAX_COUNT = 6;
-        MapLocation[] candidates = self.senseNearbyLocationsWithLead(-1, TypeMiner.SUSTAINABLE_LEAD_THRESHOLD + 1);
+        MapLocation[] candidates = self.senseNearbyLocationsWithLead(-1);
         if (candidates.length == 0)
             return;
         int len = sample(candidates, MAX_COUNT);
         for (int i = 0; i < len; i++) {
             MapLocation loc = candidates[i];
-            boolean nearMiner = false;
-            for (RobotInfo bot : self.senseNearbyRobots(loc, 2, us)) {
-                if (bot.getType().equals(RobotType.MINER)) {
-                    nearMiner = true;
-                    break;
+            boolean nearMiner = self.getType().equals(RobotType.MINER) && self.getLocation().distanceSquaredTo(loc) <= 2;
+            if (!nearMiner) {
+                for (RobotInfo bot : self.senseNearbyRobots(loc, 2, us)) {
+                    if (bot.getType().equals(RobotType.MINER)) {
+                        nearMiner = true;
+                        break;
+                    }
                 }
             }
             if (nearMiner)
                 continue;
+            // System.out.println("Reporting mine at " + loc);
             int encoded = encodeLocation(loc);
             for (int j = MINER_START; j < MINER_END; j++) {
                 int raw = self.readSharedArray(j);
@@ -478,29 +489,19 @@ public class Messaging extends Globals {
     public static MapLocation getMostImportantFrontier(MapLocation here) throws GameActionException {
         int minDis = Integer.MAX_VALUE;
         MapLocation minDisLoc = null;
+        int maxPriority = 0;
         for (int i = FRONTIER_START; i < FRONTIER_END; i++) {
             int raw = self.readSharedArray(i);
+            int priority = raw >> COORDINATE_WIDTH;
             if (raw == IMPOSSIBLE_LOCATION)
                 continue;
             MapLocation loc = decodeLocation(raw);
-            if (loc.distanceSquaredTo(here) < minDis) {
+            if (priority < maxPriority)
+                continue;
+            if (priority > maxPriority || loc.distanceSquaredTo(here) < minDis) {
+                maxPriority = priority;
                 minDis = loc.distanceSquaredTo(here);
                 minDisLoc = loc;
-            }
-        }
-        if (minDis < 10)
-            return minDisLoc;
-
-        for (int i = FRONTIER_START; i < FRONTIER_END; i++) {
-            int raw = self.readSharedArray(i);
-            if (raw == IMPOSSIBLE_LOCATION)
-                continue;
-            MapLocation loc = decodeLocation(raw);
-            for (int j = 0; j < initialArchonCount; j++) {
-                if (loc.distanceSquaredTo(getArchonLocation(j)) < minDis) {
-                    minDis = loc.distanceSquaredTo(here);
-                    minDisLoc = loc;
-                }
             }
         }
         return minDisLoc;
