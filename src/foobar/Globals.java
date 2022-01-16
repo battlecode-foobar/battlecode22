@@ -22,7 +22,7 @@ public class Globals {
     /**
      * A deterministic random number generator.
      */
-    public static final Random rng = new Random(19260817);
+    public static Random rng = new Random(19260817);
     /**
      * An array of all direction.
      */
@@ -66,6 +66,7 @@ public class Globals {
     public static void initGlobals(RobotController rc) {
         self = rc;
         us = rc.getTeam();
+        rng = new Random(rc.getID());
         them = us.opponent();
         // This will quickly become 0 as stepGlobals() will be called.
         turnCount = -1;
