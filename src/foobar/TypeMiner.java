@@ -51,7 +51,8 @@ public strictfp class TypeMiner extends Globals {
             boolean shouldUpdateLocation = false;
             if (newLoc != null) {
                 if (isWandering) {
-                    shouldUpdateLocation = (targetLoc.x - here.x) * (newLoc.x - here.x) + (targetLoc.y - here.y) * (newLoc.y - here.y) >= 0;
+                    shouldUpdateLocation = true;
+                    // shouldUpdateLocation = (targetLoc.x - here.x) * (newLoc.x - here.x) + (targetLoc.y - here.y) * (newLoc.y - here.y) >= 0;
                 } else {
                     double oldDis = Math.sqrt(targetLoc.distanceSquaredTo(here));
                     double newDis = Math.sqrt(newLoc.distanceSquaredTo(here));
@@ -73,7 +74,8 @@ public strictfp class TypeMiner extends Globals {
                 currentTargetCommitment++;
             }
         } else {
-            wander();
+            PathFinding.spreadOut();
+            // wander();
         }
         self.setIndicatorString("target " + targetLoc + " wandering? " + isWandering);
     }
@@ -146,7 +148,8 @@ public strictfp class TypeMiner extends Globals {
             return true;
         if (isWandering)
             return true;
-        if (self.getLocation().distanceSquaredTo(targetLoc) == 0)
+       // return self.senseNearbyLocationsWithLead(targetLoc, 2, SUSTAINABLE_LEAD_THRESHOLD + 1).length != 0;
+        if (self.getLocation().equals(targetLoc))
             return true;
 /*
         if (!self.getLocation().equals(targetLoc)) {

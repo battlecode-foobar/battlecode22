@@ -371,7 +371,7 @@ public class Messaging extends Globals {
      */
     public static void reportAllMinesAround() throws GameActionException {
         final int MAX_COUNT = 6;
-        MapLocation[] candidates = self.senseNearbyLocationsWithLead(-1);
+        MapLocation[] candidates = self.senseNearbyLocationsWithLead(-1, TypeMiner.SUSTAINABLE_LEAD_THRESHOLD + 1);
         if (candidates.length == 0)
             return;
         int len = sample(candidates, MAX_COUNT);
@@ -464,7 +464,7 @@ public class Messaging extends Globals {
         int minDisArchon = defaultValue;
         for (int i = start; i < end; i++) {
             int raw = self.readSharedArray(i);
-            if (raw == Messaging.IMPOSSIBLE_LOCATION || raw >> COORDINATE_WIDTH != 0)
+            if (raw == Messaging.IMPOSSIBLE_LOCATION)
                 continue;
             for (int j = 0; j < initialArchonCount; j++) {
                 if (isArchonUnavailable(j))

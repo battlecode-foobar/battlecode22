@@ -104,12 +104,15 @@ public class PathFinding extends Globals {
             // A wise bot should not repeat its mistake twice.
             if (isInHistory(there) > 0)
                 continue;
+            int cost = getCostAt(there);
+            // if (cost >= 10)
+            //     continue;
             int multiplier = 2;
             if (here.distanceSquaredTo(there) == 2
                     && Math.cos(theta) * dir.getDeltaX() + Math.sin(theta) * dir.getDeltaY() > 1.01) {
                 multiplier = 1;
             }
-            int costThere = multiplier * getCostAt(there);
+            int costThere = multiplier * cost;
             if (costThere < minCost) {
                 minCost = costThere;
                 minCostDir = dir;
@@ -132,7 +135,6 @@ public class PathFinding extends Globals {
             around[i] = getCostAt(self.getLocation().add(directions[i]));
         Arrays.sort(around);
         defaultObstacleThreshold = around[1] + 1;
-        self.setIndicatorString("threshold: " + defaultObstacleThreshold);
     }
 
     /**
@@ -299,10 +301,12 @@ public class PathFinding extends Globals {
      * Spread out.
      */
     public static void spreadOut() {
+        final double CENTRIFUGAL_ALPHA = 0.03;
         // updateObstacleThreshold();
         MapLocation here = self.getLocation();
         RobotInfo[] botsAround = self.senseNearbyRobots();
-        double x = 0, y = 0;
+        double x = CENTRIFUGAL_ALPHA * (self.getMapWidth() / 2f - here.x);
+        double y = CENTRIFUGAL_ALPHA * (self.getMapHeight() / 2f - here.y);
         for (RobotInfo bot : botsAround) {
             MapLocation loc = bot.getLocation();
             double denom = Math.sqrt(loc.distanceSquaredTo(here));

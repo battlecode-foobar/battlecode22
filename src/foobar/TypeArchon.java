@@ -99,7 +99,6 @@ public strictfp class TypeArchon extends Globals {
         if (self.getMode().equals(RobotMode.TURRET)) {
             // enemyDirection is defaultly center; else when frontier occurs update for the archon closest to it.
             updateProximalEnemyDirection();
-            self.setIndicatorString(""+enemyDirection);
             if (shouldBuildWatchtower()){
                 scheduleWatchtower();
             }
@@ -148,7 +147,7 @@ public strictfp class TypeArchon extends Globals {
             return false;
         if (Messaging.getClosestArchonTo(Messaging.MINER_START, Messaging.MINER_END, archonIndex) != archonIndex)
             return false;
-        if (Messaging.getTotalMinerCount() > 7 * initialArchonCount && rng.nextDouble() > 0.125)
+        if (Messaging.getTotalMinerCount() > 6 * initialArchonCount && rng.nextDouble() > 0.1)
             return false;
         if (self.getTeamLeadAmount(us) > 300)
             return true;
