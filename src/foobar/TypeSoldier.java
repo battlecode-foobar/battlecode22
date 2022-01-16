@@ -54,10 +54,10 @@ public class TypeSoldier extends Globals {
         MapLocation frontier = Messaging.getMostImportantFrontier();
         if (frontier != null) {
             self.setIndicatorLine(self.getLocation(), frontier, 0, 255, 255);
-            if (frontier.distanceSquaredTo(self.getLocation()) < 3600)
-                PathFinding.moveTo(frontier);
-            else
-                PathFinding.wanderAvoidingObstacle(PathFinding.defaultObstacleThreshold);
+            // if (frontier.distanceSquaredTo(self.getLocation()) < 10000)
+            PathFinding.moveTo(frontier);
+            // else
+            //     PathFinding.wanderAvoidingObstacle(PathFinding.defaultObstacleThreshold);
         } else {
             PathFinding.spreadOut();
 /*
