@@ -148,7 +148,7 @@ public strictfp class TypeMiner extends Globals {
             return true;
         if (isWandering)
             return true;
-       // return self.senseNearbyLocationsWithLead(targetLoc, 2, SUSTAINABLE_LEAD_THRESHOLD + 1).length != 0;
+        //    return self.senseNearbyLocationsWithLead(targetLoc, 2, SUSTAINABLE_LEAD_THRESHOLD + 1).length != 0;
         if (self.getLocation().equals(targetLoc))
             return true;
 /*
