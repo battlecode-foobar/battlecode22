@@ -30,10 +30,12 @@ public class FireControl extends Globals {
     public static int evaluatePriority(RobotInfo bot) {
         switch (bot.getType()) {
             case SOLDIER:
-                return 3;
+                return 4;
             case WATCHTOWER:
-                return 2;
+                return 3;
             case MINER:
+                return 2;
+            case ARCHON:
                 return 1;
         }
         return 0;
