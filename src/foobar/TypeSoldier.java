@@ -8,7 +8,10 @@ public class TypeSoldier extends Globals {
         Messaging.reportAllMinesAround();
         findEnemyAndAttack();
         // The sin is not in being outmatched, but in failing to recognize it.
-        if (!PathFinding.tryRetreat(13,-1))
+        double confidence = FireControl.evaluatePower(self.senseRobotAtLocation(self.getLocation()));
+        if(self.getID() == 12225)
+            log(confidence + " self");
+        if (!PathFinding.tryRetreat(13,confidence - 1))
             supportFrontier();
     }
 

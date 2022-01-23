@@ -99,6 +99,7 @@ public class PathFinding extends Globals {
         MapLocation here = self.getLocation();
         for (Direction dir : getDiscreteDirection5(theta)) {
             MapLocation there = here.add(dir);
+            log(11463, dir.toString());
             if (!self.canSenseLocation(there))
                 continue;
             // A wise bot should not repeat its mistake twice.
@@ -180,7 +181,7 @@ public class PathFinding extends Globals {
         return getCostAt(there) <= obstacleThreshold;
     }
 
-    static MapLocation[] history = new MapLocation[8];
+    static MapLocation[] history = new MapLocation[3];
     static MapLocation lastTarget = null;
     static int historyPtr = 0;
 
@@ -301,7 +302,7 @@ public class PathFinding extends Globals {
      * Spread out.
      */
     public static void spreadOut() {
-        final double CENTRIFUGAL_ALPHA = 0.03;
+        final double CENTRIFUGAL_ALPHA = 0.00;
         // updateObstacleThreshold();
         MapLocation here = self.getLocation();
         RobotInfo[] botsAround = self.senseNearbyRobots();
@@ -327,16 +328,21 @@ public class PathFinding extends Globals {
      * @param radius The radius at which you want to start to retreat.
      */
     @SuppressWarnings("DuplicatedCode")
-    public static boolean tryRetreat(int radius, int confidence) {
+    public static boolean tryRetreat(int radius, double confidence) {
         MapLocation here = self.getLocation();
         RobotInfo[] botsAround = self.senseNearbyRobots(13, us);
+        if(self.getID() == 11463)
+            log(confidence + "");
         for (RobotInfo bot : botsAround)
             confidence += FireControl.evaluatePower(bot);
+        if(self.getID() == 11463)
+            log(confidence + "");
         double x = 0, y = 0;
         boolean impendingDoom = false;
         botsAround = self.senseNearbyRobots(radius, them);
+        log(11463, botsAround.length + "");
         for (RobotInfo bot : botsAround) {
-            int power = FireControl.evaluatePower(bot);
+            double power = FireControl.evaluatePower(bot);
             if (power != 0) {
                 impendingDoom = true;
                 confidence -= power;
@@ -347,7 +353,9 @@ public class PathFinding extends Globals {
                 y -= (loc.y - here.y) / denom;
             }
         }
-        // self.setIndicatorString("retreating confidence " + confidence + " doom? " + impendingDoom);
+        if(self.getID() == 11463)
+            log(confidence +""+ impendingDoom);
+        self.setIndicatorString(confidence +""+ impendingDoom);
         if (impendingDoom && confidence < 0) {
             // The sin is not in being outmatched, but in failing to recognize it.
             double theta = Math.atan2(y, x);

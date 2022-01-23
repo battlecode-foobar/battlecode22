@@ -41,10 +41,10 @@ public strictfp class TypeMiner extends Globals {
             targetLoc = searchForTarget();
             isWandering = false;
             currentTargetCommitment = 0;
-            if (targetLoc == null) {
+            /*if (targetLoc == null) {
                 targetLoc = searchForWanderingTarget();
                 isWandering = true;
-            }
+            }*/
         } else if (currentTargetCommitment >= 1) {
             MapLocation newLoc = searchForTarget();
             MapLocation here = self.getLocation();
@@ -110,7 +110,9 @@ public strictfp class TypeMiner extends Globals {
             x += dx;
             y += dy;
         }
-        return new MapLocation((int)(x - dx), (int)(y - dy));
+        MapLocation target = new MapLocation((int) (x - dx), (int) (y - dy));
+        return target;
+
     }
 
     static int getNeighboringMinerCount(MapLocation loc) {

@@ -100,6 +100,12 @@ public class Globals {
             System.out.println(message);
     }
 
+    public static void log(int ID, String message) {
+        // Only targeting a specific ID.
+        if (self.getID() == ID && us == Team.A)
+            System.out.println(message);
+    }
+
     public static class LeadMine {
         public static int leadAmount;
         public static int isTargeted;
