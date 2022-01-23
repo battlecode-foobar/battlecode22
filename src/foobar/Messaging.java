@@ -1,6 +1,9 @@
 package foobar;
 
-import battlecode.common.*;
+import battlecode.common.GameActionException;
+import battlecode.common.MapLocation;
+import battlecode.common.RobotInfo;
+import battlecode.common.RobotType;
 
 /**
  * Messaging-related utility functions.
@@ -86,6 +89,9 @@ public class Messaging extends Globals {
      */
     public static final int WATCHTOWER_START = MINER_END;
     public static final int WATCHTOWER_END = WATCHTOWER_START + 4;
+    // Need 3 for each mode of symmetry
+    public static final int CANDIDATE_SYMMETRY_START = WATCHTOWER_END;
+    public static final int CANDIDATE_SYMMETRY_END = CANDIDATE_SYMMETRY_START + 3;
 
     public static final int MINE_PROXIMITY = 2;
 
@@ -95,6 +101,13 @@ public class Messaging extends Globals {
     public static int encodeWatchtowerLocationAndClaimArrivalStatus(MapLocation loc, boolean claimed, boolean arrived) {
         // Add 1 to denote that this has been intentionally written
         return encodeLocation(loc) * 8 + (claimed ? 4 : 0) + (arrived ? 2 : 0) + 1;
+    }
+
+    /**
+     * Encode symmetry-related information (representative location, which archon closest, whether claimed, is possible)
+     */
+    public static int encodeSymmetryInfo(MapLocation loc, int archon_index, boolean claimed, boolean isPossible) {
+        return encodeLocation(loc) * 16 + archon_index + (claimed ? 2 : 0) + (isPossible ? 1 : 0);
     }
 
     /**
@@ -315,6 +328,7 @@ public class Messaging extends Globals {
 
     /**
      * Performs a random sample (without replacement) up to a given number of elements from an array of objects.
+     *
      * @param candidates A list of map locations to be partially shuffled. This array will be mutated in-place.
      * @return The sample size.
      */
