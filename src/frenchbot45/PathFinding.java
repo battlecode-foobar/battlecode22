@@ -1,4 +1,4 @@
-package frenchbot;
+package frenchbot45;
 
 import battlecode.common.*;
 
@@ -471,23 +471,41 @@ public class PathFinding extends Globals {
             tryMove(dir);
     }
 
+
+    public static double getMultiplier(MapLocation loc) {
+//        return 1;
+        try {
+            return 1 / (self.senseRubble(loc) / 10.0 + 1);
+        } catch (GameActionException e) {
+            return 0;
+        }
+    }
     /**
      * A wise general cuts losses, and regroup.
      *
      * @param radius The radius at which you want to start to retreat.
      */
-    public static boolean tryRetreat(int radius, int confidence) {
+
+    public static boolean tryRetreat(int radius) {
+        //Remember that overconfidence is a slow and insidious killer.
+        double confidencePower = selfPower() - 2;
+        double confidenceHealth = selfHealth();
         MapLocation here = self.getLocation();
         RobotInfo[] botsAround = self.senseNearbyRobots(5, us);
         for (RobotInfo bot : botsAround)
-            confidence += evaluatePower(bot);
+        {
+            confidencePower += evaluatePower(bot);
+            confidenceHealth += evaluateHealth(bot);
+        }
         double x = 0, y = 0;
+        double enemyPower = 0, enemyHealth = 0;
         boolean impendingDoom = false;
         botsAround = self.senseNearbyRobots(radius, them);
         for (RobotInfo bot : botsAround) {
             if (evaluatePower(bot) != 0) {
                 impendingDoom = true;
-                confidence -= evaluatePower(bot);
+                enemyPower += evaluatePower(bot);
+                enemyHealth += evaluateHealth(bot);
                 MapLocation loc = bot.getLocation();
                 double denom = Math.sqrt(loc.distanceSquaredTo(here));
                 denom *= loc.distanceSquaredTo(here);
@@ -495,9 +513,9 @@ public class PathFinding extends Globals {
                 y -= (loc.y - here.y) / denom;
             }
         }
-        self.setIndicatorString(confidence + " " + impendingDoom);
-        if (impendingDoom && confidence < 0) {
+        if (impendingDoom && confidenceHealth * confidencePower < enemyHealth * enemyPower) {
             // The sin is not in being outmatched, but in failing to recognize it.
+            self.setIndicatorString(confidenceHealth * confidencePower + " " + impendingDoom);
             double theta = Math.atan2(y, x);
             Direction dir = findDirectionTo(theta);
             if (dir != null)

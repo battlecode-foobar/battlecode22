@@ -1,10 +1,10 @@
-package foobar;
+package frenchbot45;
 
 import battlecode.common.*;
 
 import java.util.Random;
 
-import static foobar.PathFinding.getMultiplier;
+import static frenchbot45.PathFinding.getMultiplier;
 
 /**
  * Global variables.

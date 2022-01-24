@@ -1,4 +1,4 @@
-package foobar;
+package frenchbot45;
 
 import battlecode.common.*;
 
