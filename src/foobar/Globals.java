@@ -171,7 +171,7 @@ public class Globals {
         // This must be a valid location
         assert (isValidMapLoc(loc));
         boolean[] symmetryPossible = Messaging.readSymmetryPossibilities();
-        assert (!(symmetryPossible[0] && symmetryPossible[1] && symmetryPossible[2]));
+        assert (symmetryPossible[0] || symmetryPossible[1]  || symmetryPossible[2]);
 
         int minDistToFriendlyArchons = minDistanceToArchons(loc, friendlyArchonLocs);
         for (int symmetryIndex = 0; symmetryIndex < 3; symmetryIndex++) {
