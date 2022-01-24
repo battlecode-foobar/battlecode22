@@ -105,9 +105,13 @@ public class Messaging extends Globals {
 
     /**
      * Encode symmetry-related information (representative location, which archon closest, whether claimed, is possible)
+     * @param loc Enemy archon location.
+     * @param archonIndex The index of our closest archon to loc.
+     * @param claimed Is this direction claimed by some explorer.
+     * @param possible Is this symmetry configuration possible?
      */
-    public static int encodeSymmetryInfo(MapLocation loc, int archon_index, boolean claimed, boolean isPossible) {
-        return encodeLocation(loc) * 16 + archon_index + (claimed ? 2 : 0) + (isPossible ? 1 : 0);
+    public static int encodeSymmetryInfo(MapLocation loc, int archonIndex, boolean claimed, boolean possible) {
+        return (encodeLocation(loc) << 4) | (archonIndex << 2) | (claimed ? 2 : 0) | (possible ? 1 : 0);
     }
 
     /**

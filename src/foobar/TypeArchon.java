@@ -57,29 +57,17 @@ public strictfp class TypeArchon extends Globals {
             self.writeSharedArray(i, 1);
     }
 
-    public static int computeSymmetryValue(int value, int symmetryType, boolean is_x) {
-        // Horizontal symmetry
-        if (symmetryType == 0)
-            return (is_x ? self.getMapWidth() - value - 1 : value);
-            // Vertical symmetry
-        else if (symmetryType == 1)
-            return (!is_x ? self.getMapHeight() - value - 1 : value);
-            // Vertical \circ Horizontal symmetry
-        else if (symmetryType == 2)
-            return (is_x ? self.getMapWidth() : self.getMapHeight()) - value - 1;
-        return -1;
-    }
-
     // Decides whether the two arrays of candidate locations are equivalent up to permutation
-    public static boolean symmetryEquivalent(MapLocation[] locsA, MapLocation[] locsB) {
-        for (int i = 0; i < locsB.length; i++) {
-            boolean repeated = false;
-            for (int j = 0; j < locsA.length; j++)
-                if (locsB[i].equals(locsA[j])) {
-                    repeated = true;
+    public static boolean isSymmetryEquivalent(MapLocation[] locsA, MapLocation[] locsB) {
+        for (MapLocation b : locsB) {
+            boolean hasMatch = false;
+            for (MapLocation a : locsA) {
+                if (b.equals(a)) {
+                    hasMatch = true;
                     break;
                 }
-            if (!repeated)
+            }
+            if (!hasMatch)
                 return false;
         }
         return true;
@@ -93,70 +81,81 @@ public strictfp class TypeArchon extends Globals {
      * Then compute and write representative symmetry locations to shared array
      */
     public static void hypothesizeWriteSymmetry() throws GameActionException {
-        boolean debugOutputs = true;
+        boolean debugOutputs = archonIndex == centralArchonIndex;
         boolean[] symmetryPossible = new boolean[3];
-        if (archonIndex == centralArchonIndex && debugOutputs)
+        if (debugOutputs)
             System.out.println("Central archon @" + self.getLocation() + " trying to compute enemy archons");
         MapLocation[] usArchonLocs = new MapLocation[initialArchonCount];
-        if (archonIndex == centralArchonIndex && debugOutputs)
+        if (debugOutputs)
             System.out.println("Our Archon Locs:");
         for (int i = 0; i < initialArchonCount; i++) {
-            usArchonLocs[i] = Messaging.readSharedLocation(Messaging.getArchonOffset(i));
-            if (archonIndex == centralArchonIndex && debugOutputs)
+            usArchonLocs[i] = Messaging.getArchonLocation(i);
+            if (debugOutputs)
                 System.out.println("" + i + " " + usArchonLocs[i]);
         }
         MapLocation[][] enemyArchonLocs = new MapLocation[3][initialArchonCount];
+
+        int width = self.getMapWidth();
+        int height = self.getMapHeight();
+        for (int i = 0; i < initialArchonCount; i++) {
+            MapLocation loc = usArchonLocs[i];
+            int x = loc.x, cx = width - x - 1;
+            int y = loc.y, cy = height - y - 1;
+            enemyArchonLocs[0][i] = new MapLocation(cx, y); // Horizontal symmetry.
+            enemyArchonLocs[1][i] = new MapLocation(x, cy); // Vertical symmetry.
+            enemyArchonLocs[2][i] = new MapLocation(cx, cy); // 180 deg. rotational symmetry.
+        }
+
         symmetryLoop:
         for (int symmetryIndex = 0; symmetryIndex < 3; symmetryIndex++) {
-            // Initialize each symmetry mode to "possible"
             symmetryPossible[symmetryIndex] = true;
-            if (archonIndex == centralArchonIndex && debugOutputs)
+            if (debugOutputs)
                 System.out.println("Enemy Archon Locs under symmetry #" + symmetryIndex);
             for (int i = 0; i < initialArchonCount; i++) {
-                enemyArchonLocs[symmetryIndex][i] = new MapLocation(
-                        computeSymmetryValue(usArchonLocs[i].x, symmetryIndex, true),
-                        computeSymmetryValue(usArchonLocs[i].y, symmetryIndex, false));
                 // If any location coincides with any of our archon's locations, immediate it rule out
-                for (int k = 0; k < initialArchonCount; k++)
+                for (int k = 0; k < initialArchonCount; k++) {
                     if (enemyArchonLocs[symmetryIndex][i].equals(usArchonLocs[k])) {
-                        if (archonIndex == centralArchonIndex && debugOutputs)
+                        if (debugOutputs)
                             System.out.println("Ruled out symmetry #" + symmetryIndex + " due to archon loc conflict");
                         symmetryPossible[symmetryIndex] = false;
                         continue symmetryLoop;
                     }
+                }
                 // If this archon can sense this location and there's no enemy archon there, rule it out
                 // This is the archon-specific rule that compels us to run a copy of this largely-extraneous
                 // computation for each archon
-                if (self.canSenseLocation(enemyArchonLocs[symmetryIndex][i])) {
-                    if (archonIndex == centralArchonIndex && debugOutputs)
-                        System.out.println(self.getLocation() + " can sense " + enemyArchonLocs[symmetryIndex][i]);
-                    if (!self.canSenseRobotAtLocation(enemyArchonLocs[symmetryIndex][i]) ||
-                            self.senseRobotAtLocation(enemyArchonLocs[symmetryIndex][i]).getType() != RobotType.ARCHON) {
-                        if (archonIndex == centralArchonIndex && debugOutputs)
+                MapLocation enemyArchonLoc = enemyArchonLocs[symmetryIndex][i];
+                if (self.canSenseLocation(enemyArchonLoc)) {
+                    if (debugOutputs)
+                        System.out.println(self.getLocation() + " can sense " + enemyArchonLoc);
+                    if (!self.canSenseRobotAtLocation(enemyArchonLoc) ||
+                                self.senseRobotAtLocation(enemyArchonLoc).getType() != RobotType.ARCHON) {
+                        if (debugOutputs) {
                             System.out.println("Ruled out symmetry #" + symmetryIndex + " because candidate loc " +
                                     enemyArchonLocs[symmetryIndex][i] + " is in vision of " + self.getLocation()
                                     + "but not sensed.");
+                        }
                         symmetryPossible[symmetryIndex] = false;
                         continue symmetryLoop;
                     }
                 }
-                if (archonIndex == centralArchonIndex)
+                if (debugOutputs)
                     System.out.println(enemyArchonLocs[symmetryIndex][i]);
             }
         }
         // Most simple case: if two symmetries produce the same result then eliminate one
-        if (symmetryEquivalent(enemyArchonLocs[0], enemyArchonLocs[1])) {
-            if (archonIndex == centralArchonIndex && debugOutputs)
+        if (isSymmetryEquivalent(enemyArchonLocs[0], enemyArchonLocs[1])) {
+            if (debugOutputs)
                 System.out.println("Ruled out vertical symmetry due to equivalence with horizontal");
             symmetryPossible[1] = false;
         }
-        if (symmetryEquivalent(enemyArchonLocs[0], enemyArchonLocs[2])) {
-            if (archonIndex == centralArchonIndex && debugOutputs)
+        if (isSymmetryEquivalent(enemyArchonLocs[0], enemyArchonLocs[2])) {
+            if (debugOutputs)
                 System.out.println("Ruled out central symmetry due to equivalence with horizontal");
             symmetryPossible[2] = false;
         }
-        if (symmetryEquivalent(enemyArchonLocs[1], enemyArchonLocs[2])) {
-            if (archonIndex == centralArchonIndex && debugOutputs)
+        if (isSymmetryEquivalent(enemyArchonLocs[1], enemyArchonLocs[2])) {
+            if (debugOutputs)
                 System.out.println("Ruled central symmetry due to equivalence with vertical");
             symmetryPossible[2] = false;
         }
@@ -186,27 +185,27 @@ public strictfp class TypeArchon extends Globals {
             }
         }
         for (int symmetryIndex = 0; symmetryIndex < 3; symmetryIndex++) {
-            if (archonIndex == centralArchonIndex && debugOutputs)
+            if (debugOutputs)
                 System.out.println("Representative for symmetry " + symmetryIndex + repEnemyArchons[symmetryIndex]);
             // Write (representative location, claimed, is_possible) to shared array
             int arrayIndex = Messaging.CANDIDATE_SYMMETRY_START + symmetryIndex;
             boolean broadcastedSymmetryPossible = self.readSharedArray(arrayIndex) % 2 == 1;
             // Don't bother to write if the symmetry's already declared impossible
             if (!broadcastedSymmetryPossible) {
-                if (archonIndex == centralArchonIndex && debugOutputs)
+                if (debugOutputs)
                     System.out.println("Symmetry " + symmetryIndex + " globally broadcasted as impossible");
                 continue;
             }
             // Else: if locally known to be impossible simply write 0 (denoting this symmetry's impossible
             if (!symmetryPossible[symmetryIndex]) {
-                if (archonIndex == centralArchonIndex && debugOutputs)
+                if (debugOutputs)
                     System.out.println("Symmetry " + symmetryIndex + " locally computed not possible");
                 self.writeSharedArray(arrayIndex, 0);
             } else {
                 // Else write encoded tuple to array
                 int raw = Messaging.encodeSymmetryInfo(repEnemyArchons[symmetryIndex],
                         closestFriendlyArchonIndices[symmetryIndex], false, true);
-                if (archonIndex == centralArchonIndex && debugOutputs)
+                if (debugOutputs)
                     System.out.println("Writing symmetry hypothsis " + raw + " for " + symmetryIndex);
                 self.writeSharedArray(arrayIndex, raw);
             }
@@ -223,14 +222,12 @@ public strictfp class TypeArchon extends Globals {
             int arrayIndex = Messaging.CANDIDATE_SYMMETRY_START + symmetryIndex;
             int raw = self.readSharedArray(arrayIndex);
             // Decode the symmetry information (representative loc, responsible archon index, claimed, isPossible)
-            boolean isPossible = (raw % 2 == 1);
-            if (!isPossible)
+            boolean possible = (raw & 1) != 0;
+            if (!possible)
                 continue;
-            boolean claimed = (raw / 4) % 2 == 1;
-            MapLocation repLoc = Messaging.decodeLocation(raw / 16);
-            int responsibleArchonIndex = (raw % 16 / 4);
-            if (archonIndex == responsibleArchonIndex && isPossible)
-                System.out.println("Archon " + archonIndex + "@" + self.getLocation() + " responsible for representative loc for symmetry #" + symmetryIndex + " @" + repLoc + " (raw) " + raw);
+            boolean claimed = (raw & 2) != 0;
+            MapLocation repLoc = Messaging.decodeLocation(raw >> 4);
+            int responsibleArchonIndex = (raw >> 2) & 3;
         }
     }
 
