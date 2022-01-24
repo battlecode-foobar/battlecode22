@@ -245,6 +245,13 @@ public strictfp class TypeArchon extends Globals {
         if (turnCount == initialArchonCount + 2)
             actToSymmetryHypothesis();
 
+        MapLocation debugLoc = new MapLocation(rng.nextInt(self.getMapWidth()), rng.nextInt(self.getMapHeight()));
+
+        if (isValidMapLoc(debugLoc)) {
+            boolean[] symmetryCandidates = Messaging.readSymmetryPossibilities();
+            self.setIndicatorString(debugLoc + "territory type " + isOurTerritoryUnderSymmetryHypothesis(debugLoc) + " under hypothesis " + symmetryCandidates[0] + " " + symmetryCandidates[1] + " " + symmetryCandidates[2]);
+        }
+
         // Write global turn count.
         self.writeSharedArray(0, turnCount);
 

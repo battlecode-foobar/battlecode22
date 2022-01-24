@@ -120,6 +120,72 @@ public class Globals {
         return (loc.x > -1 && loc.y > -1 && loc.x < self.getMapWidth() && loc.x < self.getMapHeight());
     }
 
+    public static int computeSymmetryValue(int value, int symmetryType, boolean is_x) {
+        // Horizontal symmetry
+        if (symmetryType == 0)
+            return (is_x ? self.getMapWidth() - value - 1 : value);
+            // Vertical symmetry
+        else if (symmetryType == 1)
+            return (!is_x ? self.getMapHeight() - value - 1 : value);
+            // Vertical \circ Horizontal symmetry
+        else if (symmetryType == 2)
+            return (is_x ? self.getMapWidth() : self.getMapHeight()) - value - 1;
+        return -1;
+    }
+
+    /**
+     *
+     */
+    public static MapLocation[] enemyArchonLocWithSymmetryHypothesis(MapLocation[] friendlyArchonLocs,
+                                                                     int symmetryType) throws GameActionException {
+        int archonCount = self.getArchonCount();
+        MapLocation[] enemyArchonLocs = new MapLocation[archonCount];
+        for (int i = 0; i < archonCount; i++) {
+            MapLocation friendlyArchon = Messaging.getArchonLocation(i);
+            enemyArchonLocs[i] = new MapLocation(computeSymmetryValue(friendlyArchonLocs[i].x, symmetryType, true),
+                    computeSymmetryValue(friendlyArchonLocs[i].y, symmetryType, false));
+        }
+        return enemyArchonLocs;
+    }
+
+    public static int minDistanceToArchons(MapLocation loc, MapLocation[] archonLocs) {
+        int minDistance = Integer.MAX_VALUE;
+        for (int i = 0; i < archonLocs.length; i++)
+            minDistance = Integer.min(minDistance, archonLocs[i].distanceSquaredTo(loc));
+        return minDistance;
+    }
+
+    /**
+     * Returns whether a location belongs to our territory based on symmetry hypothesis
+     * If multiple hypothesis exists, compute based on most lenient hypothesis (until proven otherwise)
+     */
+    public static boolean isOurTerritoryUnderSymmetryHypothesis(MapLocation loc) throws GameActionException {
+        int archonCount = self.getArchonCount();
+        // Before we came up with any hypothesis at all
+        if (turnCount < archonCount + 2)
+            return true;
+        MapLocation[] friendlyArchonLocs = new MapLocation[archonCount];
+        for (int i = 0; i < archonCount; i++) {
+            friendlyArchonLocs[i] = Messaging.getArchonLocation(i);
+        }
+        // This must be a valid location
+        assert (isValidMapLoc(loc));
+        boolean[] symmetryPossible = Messaging.readSymmetryPossibilities();
+        assert (!(symmetryPossible[0] && symmetryPossible[1] && symmetryPossible[2]));
+
+        int minDistToFriendlyArchons = minDistanceToArchons(loc, friendlyArchonLocs);
+        for (int symmetryIndex = 0; symmetryIndex < 3; symmetryIndex++) {
+            if (!symmetryPossible[symmetryIndex])
+                continue;
+            // Compute minimum distance to friendly & enemy archons
+            MapLocation[] enemyArchonLocsUnderSymmetry = enemyArchonLocWithSymmetryHypothesis(friendlyArchonLocs,
+                    symmetryIndex);
+            if (minDistanceToArchons(loc, enemyArchonLocsUnderSymmetry) >= minDistToFriendlyArchons)
+                return true;
+        }
+        return false;
+    }
+
     /**
      * Search for mines around us; if there is no friendly miner squatting on it, broadcast it
      */
