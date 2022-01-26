@@ -24,7 +24,7 @@ public class Globals {
     /**
      * A deterministic random number generator.
      */
-    public static final Random rng = new Random(19260817);
+    public static Random rng = new Random(19260817);
     /**
      * An array of all direction.
      */
@@ -69,6 +69,7 @@ public class Globals {
         self = rc;
         us = rc.getTeam();
         them = us.opponent();
+        rng = new Random(self.getID());
         // This will quickly become 0 as stepGlobals() will be called.
         turnCount = -1;
         initialArchonCount = self.getArchonCount();
