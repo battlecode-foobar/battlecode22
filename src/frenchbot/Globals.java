@@ -111,8 +111,9 @@ public class Globals {
     public static int evaluatePower(RobotInfo bot) {
         switch (bot.getType()) {
             case SOLDIER:
-            case SAGE:
                 return 2;
+            case SAGE:
+                return 3;
             case WATCHTOWER:
                 return 4;
         }

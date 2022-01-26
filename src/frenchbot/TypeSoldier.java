@@ -8,7 +8,7 @@ public class TypeSoldier extends Globals {
         Messaging.reportAllMinesAround();
         findEnemyAndAttack();
         // The sin is not in being outmatched, but in failing to recognize it.
-        if (!PathFinding.tryRetreat(13,-1))
+        if (!PathFinding.tryRetreat(20,-1))
             supportFrontier();
     }
 

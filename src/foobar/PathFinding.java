@@ -13,6 +13,125 @@ public class PathFinding extends Globals {
     final static int INFINITY = 0xFFFF;
 
     /**
+     * A path.
+     */
+    public static class Path implements Comparable<Path> {
+        int costSoFar;
+        int costEstimate;
+        MapLocation loc;
+        Path precursor;
+
+        /**
+         * Creates a new path.
+         *
+         * @param costSoFar    The determined cost so far.
+         * @param costEstimate The future cost estimated using heuristics.
+         * @param loc          The last location of this path.
+         * @param precursor    The precursor of this path, which is a path containing everything but the end location.
+         */
+        public Path(int costSoFar, int costEstimate, MapLocation loc, Path precursor) {
+            this.costSoFar = costSoFar;
+            this.costEstimate = costEstimate;
+            this.loc = loc;
+            this.precursor = precursor;
+        }
+
+        /**
+         * Gets the total cost of the path.
+         *
+         * @return The total cost, i.e., the determined and estimated cost combined.
+         */
+        int getTotalCost() {
+            return costSoFar + costEstimate;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Path path = (Path) o;
+            return loc.equals(path.loc);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(loc);
+        }
+
+        @Override
+        public int compareTo(Path another) {
+            // return another.costSoFar + another.costEstimate - costSoFar - costEstimate;
+            return costSoFar + costEstimate - another.costSoFar - another.costEstimate;
+        }
+    }
+
+    /**
+     * A min-heap of Paths by their total cost.
+     */
+    static class PathHeap {
+        Path[] heap;
+        int n;
+
+        /**
+         * Constructs a path heap with the given capacity.
+         *
+         * @param capacity The max capacity of the constructed heap.
+         */
+        PathHeap(int capacity) {
+            heap = new Path[capacity + 1];
+            n = 0;
+        }
+
+        /**
+         * Checks if the heap is empty.
+         *
+         * @return If the heap contains no elements.
+         */
+        boolean isEmpty() {
+            return n == 0;
+        }
+
+        /**
+         * Pops the least-cost path off the heap.
+         *
+         * @return The least-cost path.
+         */
+        Path poll() {
+            Path ret = heap[1];
+            heap[1] = heap[n];
+            heap[n--] = null;
+            int cur = 1;
+            while (cur * 2 <= n) {
+                int sch = cur * 2; // smaller child.
+                if (sch + 1 <= n && heap[sch + 1].getTotalCost() < heap[sch].getTotalCost())
+                    sch++;
+                if (heap[cur].getTotalCost() < heap[sch].getTotalCost())
+                    break;
+                Path temp = heap[cur];
+                heap[cur] = heap[sch];
+                heap[cur = sch] = temp;
+            }
+            return ret;
+        }
+
+        /**
+         * Pushes a path into the heap.
+         *
+         * @param p The path to be pushed into the heap.
+         */
+        void add(Path p) {
+            heap[++n] = p;
+            int cur = n;
+            while (cur > 1 && heap[cur].getTotalCost() < heap[cur / 2].getTotalCost()) {
+                Path temp = heap[cur];
+                heap[cur] = heap[cur / 2];
+                heap[cur / 2] = temp;
+                cur /= 2;
+            }
+        }
+    }
+
+    /**
      * Cost of a single location according to the spec.
      *
      * @param loc The location.
@@ -26,6 +145,56 @@ public class PathFinding extends Globals {
         } catch (GameActionException e) {
             return INFINITY;
         }
+    }
+
+    /**
+     * Heuristics used for the A* algorithm.
+     *
+     * @param here The current location.
+     * @param dest The destination location.
+     * @return The heuristic estimate of the cost from here to dest.
+     */
+    static int estimateCost(MapLocation here, MapLocation dest) {
+        // For now manhattan distance looks like a pretty good approximation.
+        return Math.max(Math.abs(here.x - dest.x), Math.abs(here.y - dest.y)) - 1;
+    }
+
+    /**
+     * Finds a path to the given destination using A*.
+     * This function is already heavily optimized, but it is still very slow.
+     *
+     * @param dest The destination, must be within vision range of the robot.
+     * @return The least-cost path, or null if the given location is out-of-range.
+     */
+    public static Path findPathWithAStar(MapLocation dest) {
+        MapLocation here = self.getLocation();
+        if (here.distanceSquaredTo(dest) > 9 || !self.canSenseLocation(dest))
+            return null;
+        LocationMap memory = new LocationMap(self.getLocation(), 9);
+        PathHeap open = new PathHeap(30);
+        Path nothing = new Path(0, estimateCost(here, dest), self.getLocation(), null);
+        open.add(nothing);
+        memory.put(here, nothing);
+        while (!open.isEmpty()) {
+            Path cur = open.poll();
+            if (cur.loc.equals(dest))
+                return cur;
+            if (cur != memory.get(cur.loc))
+                continue;
+            for (Direction dir : directions) {
+                MapLocation next = cur.loc.add(dir);
+                if (here.distanceSquaredTo(next) > 9 || !self.canSenseLocation(dest))
+                    continue;
+                int newCostSoFar = cur.costSoFar + getCostAt(next);
+                Path stored = (Path) memory.get(next);
+                if (stored != null && stored.costSoFar <= newCostSoFar)
+                    continue;
+                Path newPath = new Path(newCostSoFar, estimateCost(next, dest), next, cur);
+                open.add(newPath);
+                memory.put(next, newPath);
+            }
+        }
+        return null;
     }
 
     static final Direction[] directionsCycle = new Direction[]{
@@ -82,7 +251,7 @@ public class PathFinding extends Globals {
      * @param dest The destination.
      * @return The direction from the current location to dest, in radians, relative to the positive x-axis.
      */
-    public static double getTheta(MapLocation dest) {
+    static double getTheta(MapLocation dest) {
         MapLocation here = self.getLocation();
         return Math.atan2(dest.y - here.y, dest.x - here.x);
     }
@@ -104,15 +273,12 @@ public class PathFinding extends Globals {
             // A wise bot should not repeat its mistake twice.
             if (isInHistory(there) > 0)
                 continue;
-            int cost = getCostAt(there);
-            // if (cost >= 10)
-            //     continue;
             int multiplier = 2;
             if (here.distanceSquaredTo(there) == 2
                     && Math.cos(theta) * dir.getDeltaX() + Math.sin(theta) * dir.getDeltaY() > 1.01) {
                 multiplier = 1;
             }
-            int costThere = multiplier * cost;
+            int costThere = multiplier * getCostAt(there);
             if (costThere < minCost) {
                 minCost = costThere;
                 minCostDir = dir;
@@ -135,6 +301,7 @@ public class PathFinding extends Globals {
             around[i] = getCostAt(self.getLocation().add(directions[i]));
         Arrays.sort(around);
         defaultObstacleThreshold = around[1] + 1;
+        self.setIndicatorString("threshold: " + defaultObstacleThreshold);
     }
 
     /**
@@ -180,8 +347,7 @@ public class PathFinding extends Globals {
         return getCostAt(there) <= obstacleThreshold;
     }
 
-    static MapLocation[] history = new MapLocation[8];
-    static MapLocation lastTarget = null;
+    static MapLocation[] history = new MapLocation[3];
     static int historyPtr = 0;
 
     /**
@@ -192,14 +358,6 @@ public class PathFinding extends Globals {
     static void addToHistory(MapLocation loc) {
         history[historyPtr++] = loc;
         historyPtr %= history.length;
-    }
-
-    /**
-     * Clears the movement history.
-     */
-    static void clearHistory() {
-        Arrays.fill(history, null);
-        historyPtr = 0;
     }
 
     /**
@@ -257,25 +415,19 @@ public class PathFinding extends Globals {
      *
      * @param dest The target.
      */
-    public static boolean moveTo(MapLocation dest) {
+    public static void moveTo(MapLocation dest) {
         MapLocation here = self.getLocation();
         if (!dest.equals(here)) {
-            if (lastTarget == null || dest.distanceSquaredTo(lastTarget) > 10) {
-                clearHistory();
-                lastTarget = dest;
-            }
             updateObstacleThreshold(getTheta(dest));
             // Path finding is a lie!
             Direction dir = dest.distanceSquaredTo(here) <= 2 ? here.directionTo(dest)
                     : findDirectionTo(getTheta(dest));
             if (dir != null) {
-                if (tryMove(dir)) {
+                if (tryMove(dir))
                     addToHistory(here);
-                    return true;
-                }
             }
         }
-        return false;
+        // :w
     }
 
     /**
@@ -301,12 +453,10 @@ public class PathFinding extends Globals {
      * Spread out.
      */
     public static void spreadOut() {
-        final double CENTRIFUGAL_ALPHA = 0.03;
         // updateObstacleThreshold();
         MapLocation here = self.getLocation();
         RobotInfo[] botsAround = self.senseNearbyRobots();
-        double x = CENTRIFUGAL_ALPHA * (self.getMapWidth() / 2f - here.x);
-        double y = CENTRIFUGAL_ALPHA * (self.getMapHeight() / 2f - here.y);
+        double x = 0, y = 0;
         for (RobotInfo bot : botsAround) {
             MapLocation loc = bot.getLocation();
             double denom = Math.sqrt(loc.distanceSquaredTo(here));
@@ -315,31 +465,47 @@ public class PathFinding extends Globals {
             y -= (loc.y - here.y) / denom;
         }
         double theta = Math.atan2(y, x);
-        Direction[] candidates = getDiscreteDirection5(theta);
+        Direction[] candidates = us.equals(Team.A) ? getDiscreteDirection3(theta) : getDiscreteDirection5(theta);
         Direction dir = candidates[rng.nextInt(candidates.length)];
         if (notObstacle(dir, defaultObstacleThreshold))
             tryMove(dir);
     }
 
+
+    public static double getMultiplier(MapLocation loc) {
+//        return 1;
+        try {
+            return 1 / (self.senseRubble(loc) / 10.0 + 1);
+        } catch (GameActionException e) {
+            return 0;
+        }
+    }
     /**
      * A wise general cuts losses, and regroup.
      *
      * @param radius The radius at which you want to start to retreat.
      */
-    @SuppressWarnings("DuplicatedCode")
-    public static boolean tryRetreat(int radius, int confidence) {
+
+    public static boolean tryRetreat(int radius) {
+        //Remember that overconfidence is a slow and insidious killer.
+        double confidencePower = selfPower() - 2;
+        double confidenceHealth = selfHealth();
         MapLocation here = self.getLocation();
-        RobotInfo[] botsAround = self.senseNearbyRobots(13, us);
+        RobotInfo[] botsAround = self.senseNearbyRobots(5, us);
         for (RobotInfo bot : botsAround)
-            confidence += FireControl.evaluatePower(bot);
+        {
+            confidencePower += evaluatePower(bot);
+            confidenceHealth += evaluateHealth(bot);
+        }
         double x = 0, y = 0;
+        double enemyPower = 0, enemyHealth = 0;
         boolean impendingDoom = false;
         botsAround = self.senseNearbyRobots(radius, them);
         for (RobotInfo bot : botsAround) {
-            int power = FireControl.evaluatePower(bot);
-            if (power != 0) {
+            if (evaluatePower(bot) != 0) {
                 impendingDoom = true;
-                confidence -= power;
+                enemyPower += evaluatePower(bot);
+                enemyHealth += evaluateHealth(bot);
                 MapLocation loc = bot.getLocation();
                 double denom = Math.sqrt(loc.distanceSquaredTo(here));
                 denom *= loc.distanceSquaredTo(here);
@@ -347,12 +513,10 @@ public class PathFinding extends Globals {
                 y -= (loc.y - here.y) / denom;
             }
         }
-        // self.setIndicatorString("retreating confidence " + confidence + " doom? " + impendingDoom);
-        if (impendingDoom && confidence < 0) {
+        if (impendingDoom && confidenceHealth * confidencePower < enemyHealth * enemyPower) {
             // The sin is not in being outmatched, but in failing to recognize it.
+            self.setIndicatorString(confidenceHealth * confidencePower + " " + impendingDoom);
             double theta = Math.atan2(y, x);
-            // Nobody cares about history when you are running.
-            clearHistory();
             Direction dir = findDirectionTo(theta);
             if (dir != null)
                 tryMove(dir);

@@ -478,7 +478,7 @@ public class PathFinding extends Globals {
      */
     public static boolean tryRetreat(int radius, int confidence) {
         MapLocation here = self.getLocation();
-        RobotInfo[] botsAround = self.senseNearbyRobots(13, us);
+        RobotInfo[] botsAround = self.senseNearbyRobots(5, us);
         for (RobotInfo bot : botsAround)
             confidence += evaluatePower(bot);
         double x = 0, y = 0;
@@ -495,7 +495,7 @@ public class PathFinding extends Globals {
                 y -= (loc.y - here.y) / denom;
             }
         }
-        // self.setIndicatorString("retreating confidence " + confidence + " doom? " + impendingDoom);
+        self.setIndicatorString(confidence + " " + impendingDoom);
         if (impendingDoom && confidence < 0) {
             // The sin is not in being outmatched, but in failing to recognize it.
             double theta = Math.atan2(y, x);

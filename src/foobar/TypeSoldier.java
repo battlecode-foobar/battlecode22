@@ -8,7 +8,7 @@ public class TypeSoldier extends Globals {
         Messaging.reportAllMinesAround();
         findEnemyAndAttack();
         // The sin is not in being outmatched, but in failing to recognize it.
-        if (!PathFinding.tryRetreat(13,-1))
+        if (!PathFinding.tryRetreat(20))
             supportFrontier();
     }
 
@@ -19,16 +19,11 @@ public class TypeSoldier extends Globals {
         int radius = self.getType().actionRadiusSquared;
         RobotInfo[] enemies = self.senseNearbyRobots(radius, them);
         int minHealth = Integer.MAX_VALUE;
-        int maxPriority = 0;
         RobotInfo enemy = null;
-        for (RobotInfo bot : enemies) {
-            int priority = FireControl.evaluatePriority(bot);
-            if (priority < maxPriority)
-                continue;
-            if (priority > maxPriority || bot.getHealth() < minHealth) {
-                maxPriority = priority;
-                minHealth = bot.getHealth();
-                enemy = bot;
+        for (RobotInfo candidate : enemies) {
+            if (candidate.getHealth() < minHealth) {
+                minHealth = candidate.getHealth();
+                enemy = candidate;
             }
         }
         if (enemy != null) {
@@ -54,10 +49,10 @@ public class TypeSoldier extends Globals {
         MapLocation frontier = Messaging.getMostImportantFrontier();
         if (frontier != null) {
             self.setIndicatorLine(self.getLocation(), frontier, 0, 255, 255);
-            // if (frontier.distanceSquaredTo(self.getLocation()) < 10000)
-            PathFinding.moveTo(frontier);
-            // else
-            //     PathFinding.wanderAvoidingObstacle(PathFinding.defaultObstacleThreshold);
+            if (frontier.distanceSquaredTo(self.getLocation()) < 3600)
+                PathFinding.moveTo(frontier);
+            else
+                PathFinding.wanderAvoidingObstacle(PathFinding.defaultObstacleThreshold);
         } else {
             PathFinding.spreadOut();
 /*
