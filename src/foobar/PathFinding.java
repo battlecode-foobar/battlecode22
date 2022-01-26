@@ -465,7 +465,7 @@ public class PathFinding extends Globals {
             y -= (loc.y - here.y) / denom;
         }
         double theta = Math.atan2(y, x);
-        Direction[] candidates = getDiscreteDirection5(theta);
+        Direction[] candidates = us.equals(Team.A) ? getDiscreteDirection3(theta) : getDiscreteDirection5(theta);
         Direction dir = candidates[rng.nextInt(candidates.length)];
         if (notObstacle(dir, defaultObstacleThreshold))
             tryMove(dir);

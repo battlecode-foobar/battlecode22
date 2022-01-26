@@ -48,29 +48,9 @@ public class TypeSoldier extends Globals {
         }
         MapLocation frontier = Messaging.getMostImportantFrontier();
         if (frontier != null) {
-            self.setIndicatorLine(self.getLocation(), frontier, 0, 255, 255);
-            if (frontier.distanceSquaredTo(self.getLocation()) < 3600)
-                PathFinding.moveTo(frontier);
-            else
-                PathFinding.wanderAvoidingObstacle(PathFinding.defaultObstacleThreshold);
+            PathFinding.moveTo(frontier);
         } else {
             PathFinding.spreadOut();
-/*
-            int minDis = Integer.MAX_VALUE;
-            MapLocation minDisLoc = null;
-            for (int i = 0; i < initialArchonCount; i++) {
-                MapLocation ourArchon = Messaging.getArchonLocation(i);
-                if (self.getLocation().distanceSquaredTo(ourArchon) < minDis) {
-                    minDis = self.getLocation().distanceSquaredTo(ourArchon);
-                    minDisLoc = ourArchon;
-                }
-            }
-            if (minDisLoc != null && minDis > 16) {
-                PathFinding.moveToBug0(minDisLoc);
-            } else {
-                PathFinding.wanderAvoidingObstacle(PathFinding.defaultObstacleThreshold);
-            }
-*/
         }
     }
 }

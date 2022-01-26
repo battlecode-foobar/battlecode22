@@ -348,7 +348,16 @@ public class PathFinding extends Globals {
     }
 
     static MapLocation[] history = new MapLocation[3];
+    static MapLocation lastTarget = null;
     static int historyPtr = 0;
+
+    /**
+     * Clears the movement history.
+     */
+    static void clearHistory() {
+        Arrays.fill(history, null);
+        historyPtr = 0;
+    }
 
     /**
      * Adds a location to movement history.
@@ -419,6 +428,10 @@ public class PathFinding extends Globals {
         MapLocation here = self.getLocation();
         if (!dest.equals(here)) {
             updateObstacleThreshold(getTheta(dest));
+            if (lastTarget == null || dest.distanceSquaredTo(lastTarget) > 10) {
+                clearHistory();
+                lastTarget = dest;
+            }
             // Path finding is a lie!
             Direction dir = dest.distanceSquaredTo(here) <= 2 ? here.directionTo(dest)
                     : findDirectionTo(getTheta(dest));
@@ -465,7 +478,7 @@ public class PathFinding extends Globals {
             y -= (loc.y - here.y) / denom;
         }
         double theta = Math.atan2(y, x);
-        Direction[] candidates = getDiscreteDirection5(theta);
+        Direction[] candidates = getDiscreteDirection3(theta);
         Direction dir = candidates[rng.nextInt(candidates.length)];
         if (notObstacle(dir, defaultObstacleThreshold))
             tryMove(dir);
@@ -518,6 +531,7 @@ public class PathFinding extends Globals {
             self.setIndicatorString(confidenceHealth * confidencePower + " " + impendingDoom);
             double theta = Math.atan2(y, x);
             Direction dir = findDirectionTo(theta);
+            clearHistory();
             if (dir != null)
                 tryMove(dir);
             return true;

@@ -48,7 +48,7 @@ public strictfp class TypeArchon extends Globals {
         for (int i = Messaging.DEAD_ARCHON_START; i < Messaging.MINER_END; i++)
             self.writeSharedArray(i, Messaging.IMPOSSIBLE_LOCATION);
         // Clear the watchtower indices
-        for (int i=Messaging.BUILDWATCHTOWER_START; i<Messaging.BUILDWATCHTOWER_END; i++)
+        for (int i = Messaging.BUILDWATCHTOWER_START; i < Messaging.BUILDWATCHTOWER_END; i++)
             self.writeSharedArray(i, 0);
     }
 
@@ -61,7 +61,17 @@ public strictfp class TypeArchon extends Globals {
             centralArchonIndex = computeCentralArchon();
         // Write global turn count.
         self.writeSharedArray(0, turnCount);
-        if (rng.nextDouble() <= 1.0 / self.getArchonCount()) {
+
+        boolean shouldForget = false;
+        if (isAllNegotiationsComplete()) {
+            for (int i = 0; i < initialArchonCount; i++) {
+                if (Messaging.isArchonUnavailable(i))
+                    continue;
+                shouldForget = i == archonIndex;
+                break;
+            }
+        }
+        if (shouldForget) {
             // Memory mechanism. Average lifetime of frontier message = frontier region length / constant below.
             for (int i = 0; i < 2; i++) {
                 int index = Messaging.FRONTIER_START + rng.nextInt(Messaging.FRONTIER_END - Messaging.FRONTIER_START);
@@ -75,16 +85,36 @@ public strictfp class TypeArchon extends Globals {
         // self.setIndicatorString("lead " + self.getTeamLeadAmount(us));
 
         if (self.getMode().equals(RobotMode.TURRET)) {
-            self.setIndicatorString(""+ifMostDangerousdirectionClosestToFrontier());
-            // OPTIMIZE: if multiple options are available, should have a tie-breaker of some sort.
-            if (shouldBuildMiner())
-                tryBuildTowardsLowRubble(RobotType.MINER);
-            else if (shouldBuildSoldier())
-                tryBuildTowardsLowRubble(RobotType.SOLDIER);
-            else if (shouldBuildBuilder())
-                tryBuildTowardsLowRubble(RobotType.BUILDER);
-            if (isAllNegotiationsComplete())
-                self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.AVAILABILITY, turnCount);
+            if (self.getTeamLeadAmount(us) < RobotType.BUILDER.buildCostLead) {
+                int minHealth = 0;
+                double maxPriority = 0;
+                MapLocation repairLoc = null;
+                for (RobotInfo bot : self.senseNearbyRobots(self.getType().actionRadiusSquared, us)) {
+                    double priority = evaluatePower(bot);
+                    if (priority < maxPriority)
+                        continue;
+                    int health = bot.getHealth();
+                    if (health == bot.getType().health)
+                        continue;
+                    if (priority > maxPriority || minHealth > health) {
+                        maxPriority = priority;
+                        minHealth = health;
+                        repairLoc = bot.getLocation();
+                    }
+                }
+                if (repairLoc != null && self.canRepair(repairLoc))
+                    self.repair(repairLoc);
+            } else {
+                // OPTIMIZE: if multiple options are available, should have a tie-breaker of some sort.
+                if (shouldBuildMiner())
+                    tryBuildTowardsLowRubble(RobotType.MINER);
+                else if (shouldBuildSoldier())
+                    tryBuildTowardsLowRubble(RobotType.SOLDIER);
+                else if (shouldBuildBuilder())
+                    tryBuildTowardsLowRubble(RobotType.BUILDER);
+                if (isAllNegotiationsComplete())
+                    self.writeSharedArray(Messaging.getArchonOffset(archonIndex) + Messaging.AVAILABILITY, turnCount);
+            }
         } else if (self.getMode().equals(RobotMode.PORTABLE)) {
             // System.out.println("Max soldiers: " + maxSoldierCount + " archon: " + maxSoldierCountArchon);
             MapLocation target = Messaging.getArchonLocation(centralArchonIndex);
@@ -103,6 +133,7 @@ public strictfp class TypeArchon extends Globals {
 
     /**
      * Checks if all archons have completed negotiation.
+     *
      * @return Whether all archons have completed negotiation.
      */
     public static boolean isAllNegotiationsComplete() {
@@ -111,6 +142,7 @@ public strictfp class TypeArchon extends Globals {
 
     /**
      * Checks if I should build miners.
+     *
      * @return Whether the archon should build a miner in this turn.
      */
     @SuppressWarnings("RedundantIfStatement")
@@ -121,7 +153,7 @@ public strictfp class TypeArchon extends Globals {
             return false;
         if (Messaging.getClosestArchonTo(Messaging.MINER_START, Messaging.MINER_END, archonIndex) != archonIndex)
             return false;
-        if (Messaging.getTotalMinerCount() > 7 * initialArchonCount && rng.nextDouble() > 0.125)
+        if (Messaging.getTotalMinerCount() > 7 * initialArchonCount && rng.nextDouble() > 0.100)
             return false;
         if (self.getTeamLeadAmount(us) > 300)
             return true;
@@ -134,6 +166,7 @@ public strictfp class TypeArchon extends Globals {
 
     /**
      * Checks if I should build soldiers.
+     *
      * @return Whether the archon should build a soldier in this turn.
      */
     @SuppressWarnings("RedundantIfStatement")
@@ -150,6 +183,7 @@ public strictfp class TypeArchon extends Globals {
 
     /**
      * Checks if I should build builders.
+     *
      * @return Whether the archon should build a builder in this turn.
      */
     static boolean shouldBuildBuilder() {
@@ -224,6 +258,7 @@ public strictfp class TypeArchon extends Globals {
 
     /**
      * Compute and select a central archon for other archons to flee to.
+     *
      * @return The archon index of the described archon.
      * @throws GameActionException Actually doesn't throw.
      */
@@ -261,12 +296,11 @@ public strictfp class TypeArchon extends Globals {
     }
 
     // Keep try broadcasting diagonal positions of ourselves for a watchtower
-    static boolean BroadcastDiagonalPositionsForWatchtower() throws GameActionException{
-        for (Direction diagDir:diagonalDirections) {
+    static boolean BroadcastDiagonalPositionsForWatchtower() throws GameActionException {
+        for (Direction diagDir : diagonalDirections) {
             MapLocation tentativeWatchtowerLoc = self.getLocation().add(diagDir);
-            if (!self.canSenseRobotAtLocation(tentativeWatchtowerLoc))
-            {
-                self.setIndicatorString("Broadcasting for Turret built@"+tentativeWatchtowerLoc);
+            if (!self.canSenseRobotAtLocation(tentativeWatchtowerLoc)) {
+                self.setIndicatorString("Broadcasting for Turret built@" + tentativeWatchtowerLoc);
                 return Messaging.tryBroadcastTargetWatchtowerLoc(tentativeWatchtowerLoc);
             }
         }
@@ -275,15 +309,15 @@ public strictfp class TypeArchon extends Globals {
 
     // Check whether this is the archon closest to frontier
     // Returns CENTER if not closest (or no frontier) else direction
-    static Direction ifMostDangerousdirectionClosestToFrontier() throws GameActionException{
+    static Direction ifMostDangerousdirectionClosestToFrontier() throws GameActionException {
         MapLocation frontier = Messaging.getMostImportantFrontier();
         if (frontier == null)
             return Direction.CENTER;
         int minDistanceToFrontier = Integer.MAX_VALUE;
         int minArchonIndexToFrontier = -1;
-        for (int archonIndex=0; archonIndex<self.getArchonCount(); archonIndex++){
+        for (int archonIndex = 0; archonIndex < self.getArchonCount(); archonIndex++) {
             int distToFrontier = Messaging.getArchonLocation(archonIndex).distanceSquaredTo(frontier);
-            if (distToFrontier < minDistanceToFrontier){
+            if (distToFrontier < minDistanceToFrontier) {
                 minDistanceToFrontier = distToFrontier;
                 minArchonIndexToFrontier = archonIndex;
             }
